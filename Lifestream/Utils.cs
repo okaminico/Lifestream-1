@@ -235,8 +235,17 @@ internal static unsafe partial class Utils
 
     public static string GetAethernetNameWithOverrides(uint id)
     {
+        // TC (Traditional Chinese, USERJOY server) isn't one of the languages the bundled
+        // KnownAetherytes dataset was captured in, so its names never match what actually shows in
+        // the TC client's aethernet menu, causing "Destination could not be found" even for
+        // completely standard destinations. Try the live Excel sheet first - it resolves in
+        // whatever language the running client's game data actually is, so it works correctly
+        // regardless of client language - and only fall back to the bundled dataset (for entries,
+        // like Firmament's synthetic ID, that aren't real Aetheryte sheet rows at all).
+        var live = Svc.Data.GetExcelSheet<Aetheryte>().GetRowOrDefault(id)?.AethernetName.Value.Name.GetText();
+        if(!string.IsNullOrEmpty(live)) return live;
         if(Utils.KnownAetherytes.TryGetValue(id, out var ret)) return ret;
-        return Svc.Data.GetExcelSheet<Aetheryte>().GetRowOrDefault(id)?.AethernetName.Value.Name.GetText();
+        return null;
     }
 
     public static bool WotsitInstalled()
