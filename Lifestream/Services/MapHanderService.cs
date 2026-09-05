@@ -80,7 +80,7 @@ public unsafe class MapHanderService : IDisposable
                             //
                             // ⚠️ 接上之後,設定檔裡已經是 false 的使用者會發現地圖點擊「突然壞了」——
                             // 其實是他當初關掉的設定終於生效。所以這裡寫 Information 級診斷
-                            // (使用者跑 LogLevel 2),讓 log 直接回答「為什麼沒反應」,不要再靜默一次。
+                            // (使用者跑 LogLevel 1),讓 log 直接回答「為什麼沒反應」,不要再靜默一次。
                             // 判斷點放在這裡而不是事件入口,是為了只在「真的點到了某個標記」時才記錄。
                             if(!C.UseMapTeleport)
                             {

@@ -33,7 +33,7 @@ public unsafe class TeleportService
         return false;
     }
 
-    public bool CanTeleport(out string error)
+    public static bool CanTeleport(out string error)
     {
         error = null;
         if(!Player.Interactable)

@@ -159,7 +159,7 @@ public static unsafe class SameAethernetTeleportPatch
                 ParseSignature(site.Signature, out var pattern, out var mask);
                 var hits = ScanAll(text, textBase, pattern, mask, limit: 8);
 
-                // 命中數一律寫 Information —— 使用者的記錄等級會濾掉 Debug/Verbose，
+                // 命中數一律寫 Information —— 使用者的記錄等級只會濾掉 Verbose、Debug 收得到但單檔數十萬行會淹沒，
                 // 而這正是「功能沒作用時第一個要看的數字」。
                 PluginLog.Information($"[SameAethernetTeleport] Signature {site.Name}: {hits.Count} match(es) in .text"
                     + (hits.Count > 0 ? $" [{hits.Select(x => $"0x{x:X}").Print(", ")}]" : ""));

@@ -138,7 +138,7 @@ public class CustomAliasCommand
                 // 情況下斷掉；改成查不到就記一行使用者看得見的錯誤並跳過這一步。
                 if(!Svc.Data.GetExcelSheet<Aetheryte>().TryGetRow(Aetheryte, out var aetheryte))
                 {
-                    DuoLog.Error($"此別名的以太之光（ID {Aetheryte}）已不存在，略過這一步。");
+                    DuoLog.Error($"此別名的乙太之光（ID {Aetheryte}）已不存在，略過這一步。");
                     return;
                 }
                 var nearestAetheryte = Svc.Objects.OrderBy(Player.DistanceTo).FirstOrDefault(x => x.IsTargetable && x.IsAetheryte() && Utils.IsAetheryteEligibleForCustomAlias(x));
@@ -191,7 +191,12 @@ public class CustomAliasCommand
                 if(TryGetAddonMaster<AddonMaster.SelectYesno>(out var m) && m.IsAddonReady)
                 {
                     //PluginLog.Debug($"Parsed text: [{m.Text}], options: {SelectOption.Where(x => x.Length > 0).Select(Utils.ParseSheetPattern).Print("\n")}");
-                    if(m.Text.ContainsAny(SelectOption.Where(x => x.Length > 0).Select(Utils.ParseSheetPattern)) && EzThrottler.Throttle($"CustomCommandSelectYesno_{ID}", 200))
+                    var text = m.Text;
+                    // 讀到 U+FFFD ＝ 窗記憶體變動中(多半是上一個步驟按過、正在關閉),這一幀不碰。
+                    if(AddonPressGuard.IsTextUnstable("SelectYesno", text)) return false;
+                    // 別名鏈可連續配置兩個 Select_Yes:下一步驟在下一 tick 就會掃到仍 IsAddonReady 的關閉中同址窗,
+                    // 節流 key 帶步驟 ID 互不相干擋不到 ⇒ 由 AddonPressGuard 記位址,同一扇窗只按一次。
+                    if(text.ContainsAny(SelectOption.Where(x => x.Length > 0).Select(Utils.ParseSheetPattern)) && EzThrottler.Throttle($"CustomCommandSelectYesno_{ID}", 200) && AddonPressGuard.TryPressOnce("SelectYesno", m, $"CustomAlias.SelectYes({ID})"))
                     {
                         m.Yes();
                         return true;
@@ -208,7 +213,8 @@ public class CustomAliasCommand
                 {
                     if(TryGetAddonMaster<AddonMaster.SelectString>(out var m) && m.IsAddonReady)
                     {
-                        if(Utils.TryFindEqualsOrContains(m.Entries, e => e.Text, SelectOption.Where(x => x.Length > 0).Select(Utils.ParseSheetPattern), out var e) && EzThrottler.Throttle($"CustomCommandSelectString_{ID}", 200))
+                        if(AddonPressGuard.AnyTextUnstable("SelectString", m.Entries.Select(x => x.Text))) return false;
+                        if(Utils.TryFindEqualsOrContains(m.Entries, e => e.Text, SelectOption.Where(x => x.Length > 0).Select(Utils.ParseSheetPattern), out var e) && EzThrottler.Throttle($"CustomCommandSelectString_{ID}", 200) && AddonPressGuard.TryPressOnce("SelectString", m, $"CustomAlias.SelectListOption({ID})", paramKey: e.Index.ToString()))
                         {
                             e.Select();
                             return true;
@@ -218,7 +224,8 @@ public class CustomAliasCommand
                 {
                     if(TryGetAddonMaster<AddonMaster.SelectIconString>(out var m) && m.IsAddonReady)
                     {
-                        if(Utils.TryFindEqualsOrContains(m.Entries, e => e.Text, SelectOption.Where(x => x.Length > 0).Select(Utils.ParseSheetPattern), out var e) && EzThrottler.Throttle($"CustomCommandSelectString_{ID}", 200))
+                        if(AddonPressGuard.AnyTextUnstable("SelectIconString", m.Entries.Select(x => x.Text))) return false;
+                        if(Utils.TryFindEqualsOrContains(m.Entries, e => e.Text, SelectOption.Where(x => x.Length > 0).Select(Utils.ParseSheetPattern), out var e) && EzThrottler.Throttle($"CustomCommandSelectString_{ID}", 200) && AddonPressGuard.TryPressOnce("SelectIconString", m, $"CustomAlias.SelectListOption({ID})", paramKey: e.Index.ToString()))
                         {
                             e.Select();
                             return true;
@@ -236,7 +243,7 @@ public class CustomAliasCommand
                 if(StopOnScreenFade && !IsScreenReady()) return true;
                 if(TryGetAddonMaster<AddonMaster.ContentsFinderConfirm>(out var m) && m.IsAddonReady)
                 {
-                    if(EzThrottler.Throttle($"CustomCommandCFCConfirm_{ID}", 2000))
+                    if(EzThrottler.Throttle($"CustomCommandCFCConfirm_{ID}", 2000) && AddonPressGuard.TryPressOnce("ContentsFinderConfirm", m, $"CustomAlias.CFCConfirm({ID})"))
                     {
                         m.Commence();
                         return true;

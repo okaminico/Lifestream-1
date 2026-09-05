@@ -166,6 +166,8 @@ public static unsafe class TaskTpAndGoToWard
                             DuoLog.Error($"Apartment {apartmentNum + 1} is vacant, could not enter.");
                             return null;
                         }
+                        // 選房後窗關 ⇒ 不帶參數組(「回答」);換區那一發帶參數組,兩者互不干擾。
+                        if(!AddonPressGuard.TryPressOnce("MansionSelectRoom", addon, nameof(SelectApartment))) return false;
                         Callback.Fire(addon, true, 0, target);
                         return true;
                     }
@@ -177,7 +179,7 @@ public static unsafe class TaskTpAndGoToWard
                         DuoLog.Error($"Could not find apartment {apartmentNum + 1} (section {section} does not exist)");
                         return null;
                     }
-                    if(EzThrottler.Throttle("EnterApartmentRool", 5000))
+                    if(EzThrottler.Throttle("EnterApartmentRool", 5000) && AddonPressGuard.TryPressOnce("MansionSelectRoom", addon, "SelectApartment.Section", paramKey: $"1|{section}", escapeIsRoutine: true))
                     {
                         Callback.Fire(addon, true, 1, section);
                         return false;
@@ -193,7 +195,7 @@ public static unsafe class TaskTpAndGoToWard
         var addon = (AddonSelectYesno*)Utils.GetSpecificYesno(true, Lang.EnterApartmenr);
         if(addon != null && IsButtonEnabled(addon->YesButton))
         {
-            if(EzThrottler.Throttle($"ConfirmApartmentEnter", 5000))
+            if(EzThrottler.Throttle($"ConfirmApartmentEnter", 5000) && AddonPressGuard.TryPressOnce("SelectYesno", addon, nameof(ConfirmApartmentEnterYesno)))
             {
                 new SelectYesnoMaster(addon).Yes();
                 return true;

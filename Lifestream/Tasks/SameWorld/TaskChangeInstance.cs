@@ -113,9 +113,12 @@ public static unsafe class TaskChangeInstance
         {
             foreach(var x in m.Entries)
             {
-                if(x.Text.Contains(InstanceNumbers[num]))
+                var text = x.Text;
+                // 讀到 U+FFFD ＝ 選單記憶體變動中(多半是上一層選單關閉中),這一幀不碰。
+                if(AddonPressGuard.IsTextUnstable("SelectString", text)) return false;
+                if(text.Contains(InstanceNumbers[num]))
                 {
-                    if(EzThrottler.Throttle("SelectTravelToInstance"))
+                    if(EzThrottler.Throttle("SelectTravelToInstance") && AddonPressGuard.TryPressOnce("SelectString", m.Base, nameof(SelectInstance), paramKey: x.Index.ToString()))
                     {
                         x.Select();
                         return true;
@@ -133,9 +136,12 @@ public static unsafe class TaskChangeInstance
         {
             foreach(var x in m.Entries)
             {
-                if(x.Text.ContainsAny(Lang.TravelToInstancedArea))
+                var text = x.Text;
+                if(AddonPressGuard.IsTextUnstable("SelectString", text)) return false;
+                if(text.ContainsAny(Lang.TravelToInstancedArea))
                 {
-                    if(EzThrottler.Throttle("SelectTravelToInstancedArea"))
+                    // 按後下一 tick 的 SelectInstance 又掃 SelectString:粒度含索引,第一層選單關閉中若被誤讀出分線字形也不會撞同索引。
+                    if(EzThrottler.Throttle("SelectTravelToInstancedArea") && AddonPressGuard.TryPressOnce("SelectString", m.Base, nameof(SelectTravel), paramKey: x.Index.ToString()))
                     {
                         x.Select();
                         return true;

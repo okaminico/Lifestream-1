@@ -35,7 +35,10 @@ internal static class TaskChangeDatacenter
     {
         if(TryGetAddonMaster<AddonMaster.SelectOk>(out var m) && m.IsAddonReady)
         {
-            if(m.Text.ContainsAny(Lang.UnableToSelectWorldForDcv) && EzThrottler.Throttle("RetryVisitOnFaulire"))
+            var text = m.Text;
+            // 讀到 U+FFFD ＝ 窗記憶體變動中,這一幀不碰。
+            if(AddonPressGuard.IsTextUnstable("SelectOk", text)) return;
+            if(text.ContainsAny(Lang.UnableToSelectWorldForDcv) && EzThrottler.Throttle("RetryVisitOnFaulire") && AddonPressGuard.TryPressOnce("SelectOk", m, nameof(ProcessUnableDialogue)))
             {
                 m.Ok();
                 P.TaskManager.Abort();

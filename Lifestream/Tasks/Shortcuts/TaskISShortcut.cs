@@ -88,7 +88,10 @@ public static unsafe class TaskISShortcut
 
         bool TalkWithBaldin()
         {
-            if(TryGetAddonMaster<AddonMaster.Talk>(out var talk))
+            // Talk 走艦隊 15 幀政策(AddonPressGuard 與 Framework_Update 那一站共用同一把 key,同幀不會點兩次);
+            // 原本連 IsAddonReady 都沒檢查,對未就緒/關閉中的 Talk 送 ReceiveEvent 是攔不到的 AccessViolation。
+            if(TryGetAddonMaster<AddonMaster.Talk>(out var talk) && talk.IsAddonReady
+                && AddonPressGuard.TryPressOnce("Talk", talk.Base, nameof(TalkWithBaldin), escapeIsRoutine: true))
                 talk.Click();
             return Utils.TrySelectSpecificEntry(Lang.TravelToMyIsland, () => EzThrottler.Throttle(nameof(TalkWithBaldin)));
         }
@@ -98,7 +101,7 @@ public static unsafe class TaskISShortcut
             var addon = (AddonSelectYesno*)Utils.GetSpecificYesno(true, Lang.TravelToYourIsland);
             if(addon != null && IsButtonEnabled(addon->YesButton))
             {
-                if(EzThrottler.Throttle(nameof(ConfirmIslandTravel), 5000))
+                if(EzThrottler.Throttle(nameof(ConfirmIslandTravel), 5000) && AddonPressGuard.TryPressOnce("SelectYesno", addon, nameof(ConfirmIslandTravel)))
                 {
                     new AddonMaster.SelectYesno(addon).Yes();
                     return true;

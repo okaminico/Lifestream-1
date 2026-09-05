@@ -52,7 +52,7 @@ public unsafe class InstanceHandler : IDisposable
 
             // [MaxInstances 語意驗證診斷] 候選 sig 0x14294D1C0 的執行期語意存疑(疑似 telemetry),靠實機自證:
             // sig 命中(欄位非 null)時,讀取「下方 fallback 本來就會讀的同一個 sig 解析位址」,與可靠的選單計數 inst
-            // 對照後印一行 Information(使用者跑 LogLevel 2 收得到):
+            // 對照後印一行 Information(使用者跑 LogLevel 1 收得到):
             //   讀到值落 1~9 且與選單計數相符 => sig 語意正確,可定案;
             //   天文數字 / 0 / 與選單計數明顯不符 => 語意錯,保留判空 fallback(不採信這個位址)。
             // 只讀 sig 解析出的那一個位址、不碰任何相鄰位址,是外掛自己分線偵測路徑上的被動讀取,不是主動記憶體探測。

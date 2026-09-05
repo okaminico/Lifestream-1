@@ -165,8 +165,8 @@ public class FollowPath : IDisposable
     /// ⚠️ 次數上限用完之後就**什麼都不做**,把場面交還給原本那個 30 秒逾時 ——
     /// 也就是說最壞情況與修改前完全相同,不會多卡、也不會無限重試。
     /// <br/><br/>
-    /// 📌 診斷一律 <c>Information</c>:這是要請使用者回報的東西,而使用者跑 LogLevel 2,
-    /// <c>Debug</c>/<c>Verbose</c> 收不到。
+    /// 📌 診斷一律 <c>Information</c>:這是要請使用者回報的東西,而使用者跑 LogLevel 1,
+    /// 盲區只有 <c>Verbose</c>,<c>Debug</c> 收得到但單檔數十萬行會淹沒。
     /// </remarks>
     private unsafe void UpdateStuckRecovery()
     {

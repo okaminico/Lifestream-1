@@ -49,7 +49,7 @@ public unsafe class Memory : IDisposable
     {
         ++_detourErrors;
         // 節流:這些 detour 可能連續觸發,不節流會把 log 灌爆反而讓使用者回報不出東西。
-        // Information 而不是 Debug —— 回報問題的使用者跑 LogLevel 2。
+        // Information 而不是 Debug —— 回報問題的使用者跑 LogLevel 1。
         var now = DateTime.UtcNow;
         if(now - _lastDetourErrorLog < TimeSpan.FromSeconds(30))
             return;
@@ -130,6 +130,10 @@ public unsafe class Memory : IDisposable
             PluginLog.Information($"ConstructEvent: NodeList[{nodeIndex}] 的清單元件取不到(版面未建好或已拆除),這一輪不送事件");
             return;
         }
+        // 對 LobbyDKTWorldList 合成 ListItemClick 是「選了還沒生效就再選一次」的刻意重試迴圈(呼叫端 DCThrottle+500ms):
+        // 粒度含 (which, category, itemToSelect),同位址不同項目照常放行;同位址同項目在 15 幀內不重送(清單選取不關窗,
+        // 走多次互動窗的逃生口),擋的是外部關閉(使用者取消/逾時)落在輪詢期間的那幾幀。被擋就整個不送,呼叫端一律 DCRethrottle+return false。
+        if(!AddonPressGuard.TryPressOnce("LobbyDKTWorldList", addon, nameof(ConstructEvent), paramKey: $"{which}|{category}|{itemToSelect}", escapeIsRoutine: true)) return;
         var Event = stackalloc AtkEvent[1]
         {
             new AtkEvent()

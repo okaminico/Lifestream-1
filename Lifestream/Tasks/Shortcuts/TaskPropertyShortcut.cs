@@ -282,15 +282,23 @@ public static unsafe class TaskPropertyShortcut
             }, "Interact with Inn NPC");
             P.TaskManager.Enqueue(() =>
             {
-                if(TryGetAddonMaster<AddonMaster.Talk>(out var talk))
+                // Talk 走艦隊 15 幀政策;原本無 IsAddonReady、無節流,每 tick 點一次,且與 Framework_Update 同幀再點一次。
+                if(TryGetAddonMaster<AddonMaster.Talk>(out var talk) && talk.IsAddonReady
+                    && AddonPressGuard.TryPressOnce("Talk", talk.Base, "PropertyShortcut.InnTalk", escapeIsRoutine: true))
                 {
                     talk.Click();
                 }
                 var obj = Svc.Objects.FirstOrDefault(x => x.BaseId.EqualsAny(InnNpc) && x.ObjectKind == ObjectKind.EventNpc && x.IsTargetable && Vector3.Distance(x.Position, Player.Position) < 10f);
                 if(obj == null) return false;
-                if(obj.IsTarget() && TryGetAddonMaster<AddonMaster.SelectString>(out var m))
+                // 原本只有 TryGetAddonMaster —— 它回的是任何已載入的實例,不看 LoadedState/IsVisible。
+                //    對尚未就緒的 SelectString 讀 PopupMenu 的項目、再送 Select 是攔不到的 AccessViolation;
+                //    AddonPressGuard 擋得住「同一扇窗按過再按」,擋不住「這扇窗根本還沒就緒」—— 兩道都要。
+                //    (對照組:CustomAliasCommand / Utils.TrySelectSpecificEntry / TaskChangeInstance / WorldChange 的 SelectString 站都是這個形狀。)
+                if(obj.IsTarget() && TryGetAddonMaster<AddonMaster.SelectString>(out var m) && m.IsAddonReady)
                 {
-                    if(m.Entries.Length > 2 && EzThrottler.Throttle("SelectRetireInn", 5000))
+                    // 讀到 U+FFFD ＝ 選單記憶體正在變動(多半是上一發選擇之後正在關閉),這一幀不碰。
+                    if(AddonPressGuard.AnyTextUnstable("SelectString", m.Entries.Select(x => x.Text))) return false;
+                    if(m.Entries.Length > 2 && EzThrottler.Throttle("SelectRetireInn", 5000) && AddonPressGuard.TryPressOnce("SelectString", m.Base, "SelectRetireInn", paramKey: "0"))
                     {
                         m.Entries[0].Select();
                         return true;
@@ -301,7 +309,8 @@ public static unsafe class TaskPropertyShortcut
             P.TaskManager.Enqueue(() =>
             {
                 if(!IsScreenReady()) return true;
-                if(TryGetAddonMaster<AddonMaster.Talk>(out var talk))
+                if(TryGetAddonMaster<AddonMaster.Talk>(out var talk) && talk.IsAddonReady
+                    && AddonPressGuard.TryPressOnce("Talk", talk.Base, "PropertyShortcut.SkipTalk", escapeIsRoutine: true))
                 {
                     talk.Click();
                 }
@@ -412,7 +421,7 @@ public static unsafe class TaskPropertyShortcut
         var addon = Utils.GetSpecificYesno(Lang.ConfirmHouseEntrance);
         if(addon != null)
         {
-            if(IsAddonReady(addon) && EzThrottler.Throttle("SelectYesno"))
+            if(IsAddonReady(addon) && EzThrottler.Throttle("SelectYesno") && AddonPressGuard.TryPressOnce("SelectYesno", addon, nameof(ConfirmHouseEntrance)))
             {
                 new AddonMaster.SelectYesno((nint)addon).Yes();
                 return true;

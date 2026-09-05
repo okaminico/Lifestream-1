@@ -46,8 +46,11 @@ public static unsafe class TaskInitInstanceData
     private static bool CloseSelectString()
     {
         if(!TryGetAddonMaster<AddonMaster.SelectString>(out var m) || !m.IsAddonReady) return true;
+        // 讀到 U+FFFD ＝ 選單記憶體變動中(多半是上一發 -1 之後正在關閉),這一幀不碰、不判定。
+        if(AddonPressGuard.IsTextUnstable("SelectString", m.Text) || AddonPressGuard.AnyTextUnstable("SelectString", m.Entries.Select(x => x.Text))) return false;
         if(!m.Entries.Any(x => x.Text.ContainsAny(Lang.TravelToInstancedArea)) && m.Text != Lang.ToReduceCongestion) return true;
-        if(EzThrottler.Throttle("InitInstanceCloseMenu", 500))
+        // 「送 -1 直到窗消失」迴圈:第一次 -1 後窗關閉中仍過 IsAddonReady、Entries 仍讀得到 ⇒ 同位址只送一次(60 幀逃生口)。
+        if(EzThrottler.Throttle("InitInstanceCloseMenu", 500) && AddonPressGuard.TryPressOnce("SelectString", m.Base, nameof(CloseSelectString)))
         {
             // Lifestream 既有的取消慣例(見 Schedulers/WorldChange.cs)
             Callback.Fire((AtkUnitBase*)m.Base, true, -1);

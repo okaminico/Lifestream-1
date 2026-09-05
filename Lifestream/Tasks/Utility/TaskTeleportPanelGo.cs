@@ -716,8 +716,8 @@ public static unsafe class TaskTeleportPanelGo
     /// <summary>從目前所在位置走去落點。</summary>
     /// <remarks>
     /// 📌 這裡的診斷刻意寫 <c>Information</c>:「人被丟在奇怪的地方 / 卡住了」這類回報,
-    /// 沒有<b>起點、終點、走不走得成</b>三件事就只能用猜的,而使用者跑 LogLevel 2,
-    /// <c>Debug</c>/<c>Verbose</c> 根本收不到。
+    /// 沒有<b>起點、終點、走不走得成</b>三件事就只能用猜的,而使用者跑 LogLevel 1,
+    /// 盲區只有 <c>Verbose</c>,<c>Debug</c> 收得到但單檔數十萬行會淹沒。
     /// ⚠️ 起點要在**這一刻**取:落地後角色可能還在滑動,事後回推會對不上。
     /// </remarks>
     private static void EnqueueWalkTo(TeleportPanelEntry entry, Vector3 landing)

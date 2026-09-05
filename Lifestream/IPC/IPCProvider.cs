@@ -1,6 +1,7 @@
 ﻿using ECommons;
 using ECommons.EzIpcManager;
 using ECommons.GameHelpers;
+using ECommons.Throttlers;
 using Lifestream.Data;
 using Lifestream.Enums;
 using Lifestream.GUI;
@@ -27,9 +28,26 @@ public class IPCProvider
         return P;
     }
 
+    /// <summary>
+    /// 讓別的外掛用 <c>/li &lt;參數&gt;</c> 的語法驅動 Lifestream。
+    /// </summary>
+    /// <param name="arguments">/li 後面的參數。<b>不可以是空的</b> —— null、空字串或只有
+    /// 空白一律被拒絕（見本檔尾端「空參數守衛」區塊），什麼都不會排。</param>
+    /// <remarks>
+    /// 📌 回傳型別維持 <c>void</c>：現有消費端（AutoRetainer / GatherBuddyReborn /
+    /// ICE / Saucy / ChilledLeves）全都以 <c>Action&lt;string&gt;</c> 訂閱，改成回傳 bool 會讓
+    /// Dalamud CallGate 型別不合、整條 IPC 靜默斷掉。所以「拒絕了」只能靠 Information log 回報。
+    /// </remarks>
     [EzIPC]
     public void ExecuteCommand(string arguments)
     {
+        if(string.IsNullOrWhiteSpace(arguments))
+        {
+            // 🔴🔴 空參數＝裸 /li＝（預設設定下）把角色傳送回本世界。
+            //      詳見本檔尾端「空參數守衛」區塊。
+            RejectEmptyIpcCommand(nameof(ExecuteCommand), arguments);
+            return;
+        }
         // 這是別的外掛在驅動 Lifestream，不是使用者主動下的 /li ——
         // 走內層，不掛「抵達提醒」哨兵。
         P.ProcessCommandInternal("/li", arguments);
@@ -131,6 +149,13 @@ public class IPCProvider
     [EzIPC]
     public void TPAndChangeWorld(string w, bool isDcTransfer, string secondaryTeleport, bool noSecondaryTeleport, int? gateway, bool? doNotify, bool? returnToGateway)
     {
+        // 空字串會在 ExcelWorldHelper.Get("") 命中 World 表裡「名稱為空」的佔位列，
+        // 接著整條世界轉移鏈會拿那個垃圾世界跑下去。
+        if(string.IsNullOrWhiteSpace(w))
+        {
+            RejectEmptyIpcCommand(nameof(TPAndChangeWorld), w);
+            return;
+        }
         P.TPAndChangeWorld(w, isDcTransfer, secondaryTeleport, noSecondaryTeleport, (WorldChangeAetheryte?)gateway, doNotify, returnToGateway);
     }
 
@@ -180,6 +205,13 @@ public class IPCProvider
     [EzIPC]
     public bool AethernetTeleport(string destination)
     {
+        // 空字串在 Utils.TryFindEqualsOrContains 的第二輪比對會以 StartsWith("") 命中
+        // **第一筆** 乙太網點，等於「隨便傳一個地方」。拒絕比亂傳誠實。
+        if(string.IsNullOrWhiteSpace(destination))
+        {
+            RejectEmptyIpcCommand(nameof(AethernetTeleport), destination);
+            return false;
+        }
         if(IsBusy()) return false;
         TaskTryTpToAethernetDestination.Enqueue(destination);
         return true;
@@ -535,6 +567,62 @@ public class IPCProvider
             return true;
         }
         return false;
+    }
+
+    #endregion
+
+    #region 空參數守衛
+
+    // 🔴🔴 為什麼要有這一段：Lifestream 的 IPC 是全艦隊最主要的跨外掛整合點，
+    //      而裸 /li（不帶參數）在預設設定 LiCommandBehavior.Return_to_Home_World 下
+    //      等於「把角色傳送回本世界」。呼叫端只要不小心把目的地算成空字串，
+    //      無人值守時就會被傳走 —— 這是艦隊紅線「絕不用聊天指令呼叫 /li，
+    //      空參數等於跨世界傳送」搬進 IPC 層的形狀。
+    //      守衛放在提供端：一次保護所有消費端，不必指望每個呼叫端自己擋。
+    // ⚠️ 只擋 null / 空字串 / 全空白。非空字串一律照舊，語意零變更。
+
+    private static readonly string[] IpcCallerSkippedAssemblies =
+    [
+        "Lifestream", "ECommons", "Dalamud", "FFXIVClientStructs", "OtterGui",
+        "Lumina", "System", "Microsoft", "mscorlib", "netstandard",
+    ];
+
+    /// <summary>
+    /// 統一的拒絕點：寫一行 Information（使用者跑 LogLevel 1，盲區只有 Verbose,Debug 收得到但單檔數十萬行會淹沒），
+    /// 並盡力指出是哪個外掛呼叫的。節流只擋 log，不擋拒絕本身。
+    /// </summary>
+    private static void RejectEmptyIpcCommand(string endpoint, string received)
+    {
+        var caller = TryIdentifyIpcCaller();
+        // EzThrottler 首次必放行，key 帶呼叫端：不同外掛各自看得到第一次，
+        // 循環重呼的呼叫端也不會洗版。
+        if(!EzThrottler.Throttle($"Lifestream.IPC.EmptyArgumentReject.{endpoint}.{caller}", 10000)) return;
+        var shown = received == null ? "null" : $"「{received}」";
+        PluginLog.Information($"[Lifestream IPC 守衛] 拒絕執行 {endpoint}({shown})：空參數等同裸 /li，預設設定下會把角色傳送回本世界，所以一律不執行。疑似呼叫端＝{caller}。請呼叫端改成傳明確的目的地，或在呼叫前自行判斷空值。");
+    }
+
+    /// <summary>
+    /// CallGate 不帶呼叫端身分，只能從受管堆疊回推第一個既不是 Lifestream
+    /// 也不是框架的組件。這是盡力而為的診斷：回「不明」不代表沒事。
+    /// </summary>
+    private static string TryIdentifyIpcCaller()
+    {
+        try
+        {
+            var trace = new System.Diagnostics.StackTrace(false);
+            for(var i = 0; i < trace.FrameCount; i++)
+            {
+                var name = trace.GetFrame(i)?.GetMethod()?.DeclaringType?.Assembly.GetName().Name;
+                if(name == null) continue;
+                if(IpcCallerSkippedAssemblies.Any(x => name == x || name.StartsWith($"{x}.", StringComparison.Ordinal))) continue;
+                return name;
+            }
+        }
+        catch(Exception e)
+        {
+            return $"辨識失敗({e.GetType().Name})";
+        }
+        return "不明";
     }
 
     #endregion

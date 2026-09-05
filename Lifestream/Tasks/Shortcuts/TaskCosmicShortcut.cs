@@ -226,6 +226,8 @@ public static unsafe class TaskCosmicShortcut
     {
         if(TryGetAddonByName<AddonSelectString>("SelectString", out var addon) && IsAddonReady(&addon->AtkUnitBase))
         {
+            // 這扇窗是本外掛沒按過的(按到了就不會走退路),守衛在這裡幾乎必放行;接上是為了「同一扇窗的所有按法都過同一個守衛」。
+            if(!AddonPressGuard.TryPressOnce("SelectString", &addon->AtkUnitBase, nameof(CloseLeftoverSelectString))) return;
             PluginLog.Information("[Cosmic] Cancelling the leftover aetheryte menu before falling back.");
             Callback.Fire(&addon->AtkUnitBase, true, -1);
         }

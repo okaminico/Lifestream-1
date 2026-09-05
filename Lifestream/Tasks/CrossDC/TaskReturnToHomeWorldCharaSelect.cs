@@ -29,7 +29,7 @@ public static unsafe class TaskReturnToHomeWorldCharaSelect
                 if(DCChange.DCThrottle && EzThrottler.Throttle("ConfirmHomeWorldVisit", 5000))
                 {
                     var button = addon->GetComponentButtonById(3);
-                    if(button != null)
+                    if(button != null && AddonPressGuard.TryPressOnce("LobbyWKTCheckHome", addon, nameof(ConfirmReturnToHomeWorld)))
                     {
                         PluginLog.Debug($"[DCChange] Confirming home world transfer");
                         button->ClickAddonButton(addon);

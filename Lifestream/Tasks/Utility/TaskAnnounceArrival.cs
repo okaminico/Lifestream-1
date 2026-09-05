@@ -100,7 +100,7 @@ internal static class TaskAnnounceArrival
 
         if(P.followPath != null && P.followPath.LastMovementFailed)
         {
-            // 使用者跑 LogLevel 2 —— 「為什麼這次沒出聲」正是他會來問的事。
+            // 使用者跑 LogLevel 1 —— 「為什麼這次沒出聲」正是他會來問的事。
             PluginLog.Information("[TataruPraise] 自動移動未能走完(逾時或被 vnavmesh 接手),不宣布抵達。");
             return true;
         }

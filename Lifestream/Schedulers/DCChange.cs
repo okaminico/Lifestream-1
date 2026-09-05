@@ -58,7 +58,7 @@ internal static unsafe class DCChange
                 DCRethrottle();
                 return false;
             }
-            if(DCThrottle)
+            if(DCThrottle && AddonPressGuard.TryPressOnce("SelectYesno", addon, nameof(SelectYesLogin)))
             {
                 PluginLog.Debug($"[DCChange] Confirming login");
                 new AddonMaster.SelectYesno(addon).Yes();
@@ -77,13 +77,14 @@ internal static unsafe class DCChange
         {
             return true;
         }
-        var addon = Utils.GetSpecificYesno(Svc.Data.GetExcelSheet<Lumina.Excel.Sheets.Addon>()?.GetRow(115).Text.ToDalamudString().GetText());
+
+        var addon = Utils.GetLogOutYesno();
         if(addon == null || !IsAddonReady(addon))
         {
             DCRethrottle();
             return false;
         }
-        if(DCThrottle)
+        if(DCThrottle && AddonPressGuard.TryPressOnce("SelectYesno", addon, nameof(SelectYesLogout)))
         {
             PluginLog.Debug($"[DCChange] Confirming logout");
             Callback.Fire(addon, true, 0);
@@ -115,7 +116,7 @@ internal static unsafe class DCChange
             if(Utils.TryGetCharacterIndex(name, world, out var index))
             {
                 PluginLog.Debug($"Select4/{index}");
-                if(DCThrottle && EzThrottler.Check("CharaSelectListMenuError"))
+                if(DCThrottle && EzThrottler.Check("CharaSelectListMenuError") && AddonPressGuard.TryPressOnce("_CharaSelectListMenu", addon, nameof(SelectCharacter), paramKey: $"29|0|{index}", escapeIsRoutine: true))
                 {
                     PluginLog.Debug($"[DCChange] Selecting character index {index}");
                     Callback.Fire(addon, false, (int)29, (int)0, (int)index);
@@ -143,7 +144,8 @@ internal static unsafe class DCChange
             DCRethrottle();
             return true;
         }
-        if(Utils.CanAutoLogin() && TryGetAddonByName<AtkUnitBase>("_TitleMenu", out var title) && IsAddonReady(title) && DCThrottle && EzThrottler.Throttle("TitleScreenClickStart"))
+        // 按 Start 後 _TitleMenu 關閉、任務不終結;關閉中的 _TitleMenu 仍過 IsAddonReady ⇒ 同位址只按一次(被擋走既有的 else DCRethrottle 路)。
+        if(Utils.CanAutoLogin() && TryGetAddonByName<AtkUnitBase>("_TitleMenu", out var title) && IsAddonReady(title) && DCThrottle && EzThrottler.Throttle("TitleScreenClickStart") && AddonPressGuard.TryPressOnce("_TitleMenu", title, nameof(TitleScreenClickStart)))
         {
             PluginLog.Debug($"[DCChange] Clicking start");
             Callback.Fire(title, true, (int)4);
@@ -179,7 +181,8 @@ internal static unsafe class DCChange
     {
         if(TryGetAddonMaster<AddonMaster.ContextMenu>(out var m) && m.IsAddonReady)
         {
-            if(m.Entries.TryGetFirst(x => x.Enabled && x.Text == Svc.Data.GetExcelSheet<Lobby>().GetRow(1150).Text.GetText(), out var entry) && DCThrottle && EzThrottler.Throttle("SelectVisitAnotherDC"))
+            if(AddonPressGuard.AnyTextUnstable("ContextMenu", m.Entries.Select(x => x.Text))) return false;
+            if(m.Entries.TryGetFirst(x => x.Enabled && x.Text == Svc.Data.GetExcelSheet<Lobby>().GetRow(1150).Text.GetText(), out var entry) && DCThrottle && EzThrottler.Throttle("SelectVisitAnotherDC") && AddonPressGuard.TryPressOnce("ContextMenu", m.Base, nameof(SelectVisitAnotherDC)))
             {
                 PluginLog.Debug($"[DCChange] Selecting visit another data center");
                 entry.Select();
@@ -197,7 +200,8 @@ internal static unsafe class DCChange
     {
         if(TryGetAddonMaster<AddonMaster.ContextMenu>(out var m) && m.IsAddonReady)
         {
-            if(m.Entries.TryGetFirst(x => x.Enabled && x.Text == Svc.Data.GetExcelSheet<Lobby>().GetRow(1117).Text.GetText(), out var entry) && DCThrottle && EzThrottler.Throttle("SelectReturnToHomeWorld"))
+            if(AddonPressGuard.AnyTextUnstable("ContextMenu", m.Entries.Select(x => x.Text))) return false;
+            if(m.Entries.TryGetFirst(x => x.Enabled && x.Text == Svc.Data.GetExcelSheet<Lobby>().GetRow(1117).Text.GetText(), out var entry) && DCThrottle && EzThrottler.Throttle("SelectReturnToHomeWorld") && AddonPressGuard.TryPressOnce("ContextMenu", m.Base, nameof(SelectReturnToHomeWorld)))
             {
                 PluginLog.Debug($"[DCChange] Selecting return to home world");
                 entry.Select();
@@ -215,7 +219,7 @@ internal static unsafe class DCChange
     {
         if(TryGetAddonByName<AtkUnitBase>("LobbyDKTCheck", out var addon) && IsAddonReady(addon) && IsButtonEnabled(GetNodeListButton(addon, 3)))
         {
-            if(DCThrottle)
+            if(DCThrottle && AddonPressGuard.TryPressOnce("LobbyDKTCheck", addon, nameof(ConfirmDcVisitIntention)))
             {
                 PluginLog.Debug($"[DCChange] Confirming DC visit intention");
                 Callback.Fire(addon, true, 0);
@@ -268,6 +272,8 @@ internal static unsafe class DCChange
                         if(t != null && t->AtkResNode.Alpha_2 == 255)
                         {
                             var text = GenericHelpers.ReadSeString(&t->NodeText).GetText();
+                            // 讀到 U+FFFD ＝ 窗記憶體變動中,這一幀不碰(回 false 走既有的「下一輪再試」路徑)。
+                            if(AddonPressGuard.IsTextUnstable("LobbyDKTWorldList", text)) return false;
                             if(text == name && DCThrottle && EzThrottler.Throttle("SelectTargetDataCenter"))
                             {
                                 PluginLog.Debug($"[DCChange] Selecting Target DC {name} index {addonItem} list {listIndex}");
@@ -319,6 +325,7 @@ internal static unsafe class DCChange
                 if(t != null && t->AtkResNode.Alpha_2 == 255)
                 {
                     var text = GenericHelpers.ReadSeString(&t->NodeText).GetText();
+                    if(AddonPressGuard.IsTextUnstable("LobbyDKTWorldList", text)) return false;
                     if(text != "") num++;
                     if(text == name && DCThrottle && EzThrottler.Throttle("SelectTargetWorld"))
                     {
@@ -338,6 +345,7 @@ internal static unsafe class DCChange
                     if(t != null && t->AtkResNode.Alpha_2 == 255)
                     {
                         var text = GenericHelpers.ReadSeString(&t->NodeText).GetText();
+                        if(AddonPressGuard.IsTextUnstable("LobbyDKTWorldList", text)) return false;
                         if(text != "") num++;
                         if(text.EqualsAny(PublicWorlds.Get(Utils.GetDataCenter(name).RowId).Select(w => w.Name.ToString())) && DCThrottle && EzThrottler.Throttle("SelectTargetWorld"))
                         {
@@ -375,7 +383,8 @@ internal static unsafe class DCChange
                 if(DCThrottle && EzThrottler.Throttle("CancelDcVisit", 5000))
                 {
                     var button = GetNodeListButton(addon, 4);
-                    if(button != null)
+                    // 不帶參數組的 key ＝「這扇窗已被我們關掉」:窗消失前對同位址的清單選取(帶參數組)也一律不准再送。
+                    if(button != null && AddonPressGuard.TryPressOnce("LobbyDKTWorldList", addon, nameof(CancelDcVisit)))
                     {
                         PluginLog.Debug($"[DCChange] Cancelling DC visit");
                         button->ClickAddonButton(addon);
@@ -401,7 +410,7 @@ internal static unsafe class DCChange
         {
             if(IsButtonEnabled(GetNodeListButton(addon, 5)))
             {
-                if(DCThrottle && EzThrottler.Throttle("ConfirmDcVisit", 5000))
+                if(DCThrottle && EzThrottler.Throttle("ConfirmDcVisit", 5000) && AddonPressGuard.TryPressOnce("LobbyDKTWorldList", addon, nameof(ConfirmDcVisit)))
                 {
                     PluginLog.Debug($"[DCChange] Confirming DC visit");
                     Callback.Fire(addon, true, (int)4);
@@ -426,7 +435,7 @@ internal static unsafe class DCChange
         {
             if(IsButtonEnabled(GetNodeListButton(addon, 3)))
             {
-                if(DCThrottle && EzThrottler.Throttle("ConfirmDcVisit", 5000))
+                if(DCThrottle && EzThrottler.Throttle("ConfirmDcVisit", 5000) && AddonPressGuard.TryPressOnce("LobbyDKTCheckExec", addon, nameof(ConfirmDcVisit2)))
                 {
                     PluginLog.Debug($"[DCChange] Confirming DC visit 2");
                     Callback.Fire(addon, true, (int)0);
@@ -450,7 +459,7 @@ internal static unsafe class DCChange
     {
         if(TryGetAddonByName<AtkUnitBase>("SelectOk", out var addon) && IsAddonReady(addon))
         {
-            if(DCThrottle && EzThrottler.Throttle("SelectOk", 500))
+            if(DCThrottle && EzThrottler.Throttle("SelectOk", 500) && AddonPressGuard.TryPressOnce("SelectOk", addon, nameof(SelectOk)))
             {
                 PluginLog.Debug($"[DCChange] Selecting OK");
                 Callback.Fire(addon, true, (int)0);
@@ -467,7 +476,9 @@ internal static unsafe class DCChange
     internal static bool? SelectServiceAccount(int account)
     {
         var dcMenu = (AtkUnitBase*)Svc.GameGui.GetAddonByName("TitleDCWorldMap", 1).Address;
-        if(dcMenu != null) dcMenu->Close(true);
+        // Close(true) 的 true 就是 fireCallback:第一次 Close 後窗進入關閉中,下一 tick 仍 non-null 再 Close 一次
+        // 是同一類存取違規 ⇒ 同位址只關一次,窗消失前不再碰。
+        if(dcMenu != null && AddonPressGuard.TryPressOnce("TitleDCWorldMap", dcMenu, "SelectServiceAccount.CloseDCMap")) dcMenu->Close(true);
         if(TryGetAddonByName<AtkUnitBase>("_CharaSelectWorldServer", out _))
         {
             return true;
@@ -479,9 +490,11 @@ internal static unsafe class DCChange
             // —— 兩者是不同的關卡,只做上界擋不住元素為 null。
             // 讀不到就回 false(等下一輪),不要拿空字串去和 Lobby 表比對後選錯服務帳號。
             if(!TryGetNodeText(&addon->AtkUnitBase, 3, out var text)) return false;
+            if(AddonPressGuard.IsTextUnstable("SelectString", text)) return false;
             var compareTo = Svc.Data.GetExcelSheet<Lobby>()?.GetRow(11).Text.ToString();
             if(text == compareTo)
             {
+                if(!AddonPressGuard.TryPressOnce("SelectString", addon, nameof(SelectServiceAccount), paramKey: account.ToString())) return false;
                 PluginLog.Information($"Selecting service account");
                 new AddonMaster.SelectString(addon).Entries[account].Select();
                 return true;

@@ -548,10 +548,23 @@ public unsafe class Lifestream : IDalamudPlugin
                 TaskRemoveAfkStatus.Enqueue();
                 if(type != DCVType.Unknown)
                 {
-                    if(Config.TeleportToGatewayBeforeLogout && !(TerritoryInfo.Instance()->InSanctuary || Utils.IsLoggingOutInstant(P.Territory)) && !(currentDC == homeDC && Player.HomeWorld != Player.CurrentWorld))
+                    if(Config.TeleportToGatewayBeforeLogout && !(currentDC == homeDC && Player.HomeWorld != Player.CurrentWorld))
                     {
-                        TaskTpToAethernetDestination.Enqueue(gateway.Value.AdjustGateway());
+                        // wait to be able to teleport to know whether the teleport to the gateway is actually necessary
+                        TaskManager.Enqueue(() => TeleportService.CanTeleport(out _));
+
+                        var finalGateway = gateway.Value.AdjustGateway();
+                        TaskManager.Enqueue(() =>
+                        {
+                            if (TerritoryInfo.Instance()->InSanctuary || Utils.IsLoggingOutInstant(P.Territory))
+                            {
+                                return;
+                            }
+
+                            TaskTpToAethernetDestination.Insert(finalGateway);
+                        });
                     }
+
                     if(Config.LeavePartyBeforeLogout)
                     {
                         if(Svc.Party.Length > 1 || Svc.Condition[ConditionFlag.ParticipatingInCrossWorldPartyOrAlliance])
@@ -603,6 +616,7 @@ public unsafe class Lifestream : IDalamudPlugin
 
     private void Framework_Update(object framework)
     {
+        AddonPressGuard.Tick();
         YesAlreadyManager.Tick();
         followPath?.Update();
         if(Svc.Objects.LocalPlayer != null && S.Data.DataStore.Territories.Contains(P.Territory))
@@ -629,11 +643,18 @@ public unsafe class Lifestream : IDalamudPlugin
         if(P.TaskManager.IsBusy)
         {
             if(EzThrottler.Throttle("EnsureEnhancedLoginIsOff")) Utils.EnsureEnhancedLoginIsOff();
-            if(TryGetAddonByName<AtkUnitBase>("Trade", out var trade))
+            // 🔴 原本連 IsAddonReady 都沒有,而且「Trade 存在就每幀送 -1」——從 addon 剛配置到按下取消後
+            //    正在關閉的每一幀都會再送;對關閉中的窗再送 callback 是攔不到的 AccessViolation。
+            //    先補 ready 檢查,再經 AddonPressGuard:同一扇窗只送一次,窗消失後才會對下一扇再送。
+            if(TryGetAddonByName<AtkUnitBase>("Trade", out var trade) && IsAddonReady(trade)
+                && AddonPressGuard.TryPressOnce("Trade", trade, "Framework_Update.CancelTrade"))
             {
                 Callback.Fire(trade, true, -1);
             }
-            if(TryGetAddonMaster<AddonMaster.Talk>("Talk", out var m) && m.IsAddonReady)
+            // Talk 是「按一次翻一頁、窗不消失」的多次互動窗:同一扇窗 15 幀內只點一次(艦隊 Talk 政策),
+            // 同時也擋掉了任務(TaskISShortcut / TaskPropertyShortcut)與這裡在同一幀對同一扇 Talk 各點一次的重疊。
+            if(TryGetAddonMaster<AddonMaster.Talk>("Talk", out var m) && m.IsAddonReady
+                && AddonPressGuard.TryPressOnce("Talk", m.Base, "Framework_Update.Talk", escapeIsRoutine: true))
             {
                 m.Click();
             }
@@ -665,6 +686,7 @@ public unsafe class Lifestream : IDalamudPlugin
     {
         Svc.Framework.Update -= Framework_Update;
         Svc.Toasts.ErrorToast -= Toasts_ErrorToast;
+        GenericHelpers.Safe(AddonPressGuard.ForceTeardown);
         followPath?.Dispose();
         GenericHelpers.Safe(EzIpcFailureLog.Disable);
         // 🔴 一定要還原記憶體修補 —— 外掛卸載後遊戲還帶著被改過的碼是最糟的殘留。

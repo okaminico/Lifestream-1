@@ -51,9 +51,10 @@ public static unsafe class TaskChangeCharacter
     public static bool? SelectYesLogout()
     {
         if(!Svc.ClientState.IsLoggedIn) return true;
-        var addon = Utils.GetSpecificYesno(Svc.Data.GetExcelSheet<Addon>()?.GetRow(115).Text.GetText());
+        var addon = Utils.GetLogOutYesno();
         if(addon == null || !IsAddonReady(addon)) return false;
-        if(Utils.GenericThrottle && EzThrottler.Throttle("ConfirmLogout"))
+        // 按 Yes 後不終結任務、只靠節流擋重按;關閉中的 SelectYesno 三關 ready 仍全過,再按就是 AVE ⇒ 同位址只按一次。
+        if(Utils.GenericThrottle && EzThrottler.Throttle("ConfirmLogout") && AddonPressGuard.TryPressOnce("SelectYesno", addon, nameof(SelectYesLogout)))
         {
             new AddonMaster.SelectYesno((nint)addon).Yes();
             return false;
@@ -63,7 +64,7 @@ public static unsafe class TaskChangeCharacter
 
     public static bool? Logout()
     {
-        var addon = Utils.GetSpecificYesno(Svc.Data.GetExcelSheet<Addon>()?.GetRow(115).Text.GetText());
+        var addon = Utils.GetLogOutYesno();
         if(addon != null) return true;
         var isLoggedIn = Svc.Condition.Any();
         if(!isLoggedIn) return true;
@@ -84,8 +85,11 @@ public static unsafe class TaskChangeCharacter
         }
         if(TryGetAddonMaster<AddonMaster.SelectString>(out var m) && m.IsAddonReady)
         {
+            var text = m.Text;
+            // 讀到 U+FFFD ＝ 窗記憶體正在變動(多半是關閉中),這一幀不碰(對照孿生站 DCChange.SelectServiceAccount)。
+            if(AddonPressGuard.IsTextUnstable("SelectString", text)) return false;
             var compareTo = Svc.Data.GetExcelSheet<Lobby>()?.GetRow(11).Text.GetText();
-            if(m.Text == compareTo)
+            if(text == compareTo && AddonPressGuard.TryPressOnce("SelectString", m.Base, nameof(SelectServiceAccount), paramKey: account.ToString()))
             {
                 m.Entries[account].Select();
                 return true;
@@ -108,7 +112,7 @@ public static unsafe class TaskChangeCharacter
         }
         if(TryGetAddonMaster<AddonMaster._TitleMenu>(out var m) && m.IsReady)
         {
-            if(Utils.GenericThrottle && EzThrottler.Throttle("ClickTitleMenuStart"))
+            if(Utils.GenericThrottle && EzThrottler.Throttle("ClickTitleMenuStart") && AddonPressGuard.TryPressOnce("_TitleMenu", m.Base, nameof(ClickSelectDataCenter)))
             {
                 m.DataCenter();
                 return false;
@@ -131,7 +135,8 @@ public static unsafe class TaskChangeCharacter
         }
         if(TryGetAddonMaster<AddonMaster._TitleMenu>(out var m) && m.IsReady)
         {
-            if(Utils.GenericThrottle && EzThrottler.Throttle("ClickTitleMenuStart"))
+            // 按 Start 後 _TitleMenu 關閉、角色清單要等連線才出現;關閉中的 _TitleMenu 仍過 IsReady ⇒ 同位址只按一次。
+            if(Utils.GenericThrottle && EzThrottler.Throttle("ClickTitleMenuStart") && AddonPressGuard.TryPressOnce("_TitleMenu", m.Base, nameof(ClickStart)))
             {
                 m.Start();
                 return false;
@@ -148,7 +153,7 @@ public static unsafe class TaskChangeCharacter
     {
         if(TryGetAddonMaster<AddonMaster.TitleDCWorldMap>(out var m) && m.IsAddonReady)
         {
-            if(Utils.GenericThrottle && EzThrottler.Throttle("ClickDCSelect"))
+            if(Utils.GenericThrottle && EzThrottler.Throttle("ClickDCSelect") && AddonPressGuard.TryPressOnce("TitleDCWorldMap", m.Base, nameof(SelectDataCenter)))
             {
                 m.Select(dc);
                 return true;
@@ -195,13 +200,17 @@ public static unsafe class TaskChangeCharacter
                         }
                         else
                         {
+                            // 角色清單窗按了不關(等確認框/右鍵選單出現),重按是設計上的重試 ⇒ 粒度含角色索引與按法,
+                            // 走多次互動窗的 15 幀逃生口:只擋同位址同角色同按法在 15 幀內的重送(關閉中的危險窗口 <10 幀)。
                             if(!callContextMenu)
                             {
-                                c.Login();
+                                if(AddonPressGuard.TryPressOnce("_CharaSelectListMenu", m.Base, "SelectCharacter.Login", paramKey: $"login|{c.Index}", escapeIsRoutine: true))
+                                    c.Login();
                             }
                             else
                             {
-                                c.OpenContextMenu();
+                                if(AddonPressGuard.TryPressOnce("_CharaSelectListMenu", m.Base, "SelectCharacter.OpenContextMenu", paramKey: $"ctx|{c.Index}", escapeIsRoutine: true))
+                                    c.OpenContextMenu();
                             }
                         }
                     }
@@ -212,7 +221,7 @@ public static unsafe class TaskChangeCharacter
             {
                 if(w.Name == currentLoginWorld)
                 {
-                    if(Utils.GenericThrottle && EzThrottler.Throttle("SelectWorld"))
+                    if(Utils.GenericThrottle && EzThrottler.Throttle("SelectWorld") && AddonPressGuard.TryPressOnce("_CharaSelectWorldServer", mw.Base, "SelectCharacter.SelectWorld", paramKey: w.Index.ToString(), escapeIsRoutine: true))
                     {
                         w.Select();
                     }
@@ -239,9 +248,13 @@ public static unsafe class TaskChangeCharacter
         }
         if(TryGetAddonMaster<AddonMaster.SelectYesno>(out var m) && m.IsAddonReady)
         {
-            if(m.Text.ContainsAny(StringComparison.OrdinalIgnoreCase, Lang.LogInPartialText))
+            var text = m.Text;
+            // 讀到 U+FFFD ＝ 窗記憶體變動中(多半是關閉中),這一幀不碰。
+            if(AddonPressGuard.IsTextUnstable("SelectYesno", text)) return false;
+            if(text.ContainsAny(StringComparison.OrdinalIgnoreCase, Lang.LogInPartialText))
             {
-                if(Utils.GenericThrottle && EzThrottler.Throttle("ConfirmLogin"))
+                // 按 Yes 後窗關、登入開始,任務不終結;關閉中的 SelectYesno 仍過 IsAddonReady、文字仍比得中 ⇒ 同位址只按一次。
+                if(Utils.GenericThrottle && EzThrottler.Throttle("ConfirmLogin") && AddonPressGuard.TryPressOnce("SelectYesno", m.Base, nameof(ConfirmLogin)))
                 {
                     m.Yes();
                     return false;
@@ -266,7 +279,13 @@ public static unsafe class TaskChangeCharacter
         {
             if(Utils.GenericThrottle)
             {
-                addon->GetComponentButtonById(4)->ClickAddonButton(addon);
+                // 🔴 GetComponentButtonById 找不到時合法回 null,對 null 呼叫 ClickAddonButton 是攔不到的 AVE(對照 DCChange.CancelDcVisit 的判空)。
+                //    按下「返回標題」後窗會關而任務不終結、只有 10 幀節流 ⇒ 同位址只按一次,窗消失前不再送 ReceiveEvent。
+                var button = addon->GetComponentButtonById(4);
+                if(button != null && AddonPressGuard.TryPressOnce("_CharaSelectReturn", addon, nameof(CloseCharaSelect)))
+                {
+                    button->ClickAddonButton(addon);
+                }
             }
         }
         return false;

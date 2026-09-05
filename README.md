@@ -1,41 +1,21 @@
 ﻿# Lifestream
-Lifestream is a plugin that helps with navigation between data centers, worlds, instances, residential areas. Visit another world, data center or house with just a single command.
-## Become a Supporter!
-If you like Lifestream, please consider becoming a supporter on Patreon or via other means! This will help me to continue updating Lifestream and work on new plugins and features and you will receive benefits such as early progress updates, priority support, prioritized feature requests, early testing builds and private tools. 
-- [Subscribe on Patreon (Starts from $1)](https://subscribe.nightmarexiv.com/) - eligible for Discord role
-- [Donate Litecoin, Bitcoin, Tether or other crypto](https://crypto.nightmarexiv.com/) - eligible for Discord role
-- [One-time donation on Ko-Fi](https://ko-fi.com/nightmarexiv)
 
-### Also:
-- [Explore other plugins I maintain or contributed to](https://explore.nightmarexiv.com/)
-- [Join NightmareXIV Discord server to receive fast support and pings about plugin updates](https://discord.gg/m8NRt4X8Gf)
-## Key features
-- Visit another world with one command, even if on another data center
-- One-click to travel between aetherytes
-- Quickly switch between area instances
-- Use shortcuts to go to your home, fc house, apartment, grand company, market board
-- Create address books where you can store residential addresses of your friends or venues and go there at any time with one click
+[Lifestream](https://github.com/NightmareXIV/Lifestream) 的台服移植版，一個指令跨資料中心/世界/副本/住宅傳送。
 
-## Optional dependencies
-- [vnavmesh](https://github.com/awgil/ffxiv_navmesh) from `https://puni.sh/api/repository/veyn` for pathing to your grand company automatically
-## This plugin is in development
-This means that there are still features that I would like to implement in future or features that I would like to enhance, as well as that I'm accepting suggestions and feature requests.
-## Installation
-1. Install [FFXIVQuickLauncher](https://github.com/goatcorp/FFXIVQuickLauncher?tab=readme-ov-file#xivlauncher-----) and enable Dalamud in it's settings. You have to run the game through FFXIVQuickLauncher in order for any of these plugins to work.
-2. Open Dalamud settings by typing `/xlsettings` in game chat.
-3. Go to "Experimental" tab.
-4. Find "Custom Plugin Repositories" section, agree with listed terms if needed and paste the following link into text input field: `https://github.com/NightmareXIV/MyDalamudPlugins/raw/main/pluginmaster.json`
-5. Click "Save" button.
+## 功能
 
-You should now have NightmareXIV plugins available in your plugin installer. <br>
-Open plugin installer by typing `/xlplugins` in game chat, go to "Available plugins" section and search for a plugin you would like to install.
+- **世界與資料中心旅行**：`/li <世界>`、`/li <資料中心>`（隨機挑該資料中心一個世界），支援跨資料中心
+- **一鍵乙太之光/都市傳送網傳送**：`/li <目的地>`、`/li <世界>, tp <目的地>` 指定其他世界的傳送點
+- **副本切換**：即時切換所在區域的副本編號
+- **快捷目的地**：`/li mb`（市場佈告板）、`/li home`（自宅）、`/li fc`（公會邸宅）、`/li apt`（公寓）、`/li ws`（公會工坊）、`/li gc`（軍隊）、`/li gcc`（軍隊駐地公會儲物櫃）、`/li cosmic`（宇宙好運道/塵寰海）、`/li island`（無人島）
+- **住宅門牌傳送**：`/li <轄區> <小隊> <地號>` 直接前往指定住宅地
+- **地址簿**：儲存好友或店家的住宅地址，一鍵前往
+- **自訂指令別名**：可為常用目的地建立自己的 `/li` 子指令
+- **多段路徑**：串接多個目的地，依序自動傳送
+- **傳送面板/收藏視窗**：`/li panel`（搜尋、收藏、備註、地圖預覽）、`/li fav`（收藏分類管理）、`/li w`（世界旅行視窗）
+- **旅行封鎖清單**：可封鎖特定方向的傳送，作為避免誤觸的最後防線
+- **排程**：可設定關閉遊戲前記住目標世界，下次啟動遊戲後自動前往（換資料中心等需要重啟的情境）
 
-![image](https://github.com/NightmareXIV/MyDalamudPlugins/blob/main/meta/install/installer.png?raw=true)
+## 選用依賴
 
-## Support
-Join NightmareXIV Discord server to receive support for this plugin: https://discord.gg/m8NRt4X8Gf
-[![](https://dcbadge.vercel.app/api/server/m8NRt4X8Gf)](https://discord.gg/m8NRt4X8Gf)
-
-The server operates on a ticket-based system. Please create a ticket and describe your issue.
-Additionally, you may create an issue in the repository. Reply time for tickets may be significantly longer than on Discord, however, the issue does not have any risks to be lost.
-(Basically, if you want to report a critical bug or receive help, prefer Discord, if you want to suggest feature or report non-critical bug, prefer Github)
+- [vnavmesh](https://github.com/awgil/ffxiv_navmesh)：自動尋路走到軍隊駐地等場景內目的地

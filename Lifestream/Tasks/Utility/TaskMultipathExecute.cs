@@ -3,6 +3,7 @@ using ECommons.GameHelpers;
 using ECommons.Throttlers;
 using FFXIVClientStructs.FFXIV.Client.Game;
 using Lifestream.Data;
+using Action = Lumina.Excel.Sheets.Action;
 
 namespace Lifestream.Tasks.Utility;
 public static unsafe class TaskMultipathExecute
@@ -50,7 +51,17 @@ public static unsafe class TaskMultipathExecute
                 {
                     if(EzThrottler.Throttle("UseSprint", 250))
                     {
-                        Chat.ExecuteCommand("/action Sprint");
+                        // 🔴 技能名不可寫死英文：台服 Action row 3 的 Name 是「衝刺」，
+                        //    送 "/action Sprint" 在台服永遠不會發動，而外層還會每 250ms
+                        //    重送一次失敗的指令。改讀 Excel 表，寫法照本 repo 既有的
+                        //    TaskMoveToHouse.UseSprint。指令名 /action 本身台服保留英文，不要改。
+                        //    用 GetRowOrDefault：本 pin 的 Lumina GetRow 對不存在的 row 會擲例外，
+                        //    這裡是每幀跑的路徑，寧可不衝刺也不要每幀丟例外。
+                        var sprintName = Svc.Data.GetExcelSheet<Action>().GetRowOrDefault(3)?.Name.GetText();
+                        if(!sprintName.IsNullOrEmpty())
+                        {
+                            Chat.ExecuteCommand($"/action \"{sprintName}\"");
+                        }
                     }
                 }
             }

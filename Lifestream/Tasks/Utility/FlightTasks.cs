@@ -46,7 +46,7 @@ public static unsafe class FlightTasks
         var result = FlyIfCan();
         if(result == null)
         {
-            // 使用者跑 LogLevel 2,「為什麼沒飛起來」正是他會來問的事,寫 Debug 收不到。
+            // 使用者跑 LogLevel 1,「為什麼沒飛起來」正是他會來問的事,寫 Debug 會被單檔數十萬行淹沒。
             PluginLog.Information("[Flight] 這個區域現在不允許飛行,放棄起飛、改用地面移動。");
             return true;
         }

@@ -1573,6 +1573,8 @@ internal static unsafe partial class Utils
                     // 讀不到就跳過這個 SelectYesno 繼續往下掃(fail-closed):
                     // 不能拿空字串去比對,否則「讀不到」會被誤判成「內容為空的相符」而按下確認。
                     if(!TryGetNodeText(addon, 15, out var rawText)) continue;
+                    // 讀到 U+FFFD ＝ 這扇窗的記憶體正在變動(多半是關閉中),這一幀當作沒比中,不要按它。
+                    if(AddonPressGuard.IsTextUnstable("SelectYesno", rawText)) continue;
                     var text = rawText.Replace(" ", "");
                     if(contains ?
                         text.ContainsAny(s.Select(x => x.Replace(" ", "")))
@@ -1591,6 +1593,42 @@ internal static unsafe partial class Utils
             }
         }
         return null;
+    }
+
+    // 登出確認視窗有兩種文字:一般情況是 Addon#115,正在排隊等待副本時遊戲會換成 Addon#17531。
+    // 上游 0726a4fc 用 GetRow(17531) 直接取第二組,但台服 7.20 的 Addon 表沒有這一列
+    // (離線實查 exd-tc/7.20/Addon.csv:共 14850 列、最大 row id 102700,17531 前後最近的兩列是 17200 與 101000),
+    // 而 Lumina 的 GetRow(uint) 對不存在的列會擲 ArgumentOutOfRangeException
+    // (Lumina/src/Lumina/Excel/ExcelSheet.cs 的 GetRow:Unsafe.IsNullRef 時 throw)。
+    // 每次輪詢都會走到這裡,原樣合會在每個登出流程持續擲例外,所以一律改用 TryGetRow:
+    // 取不到就只留 115 那一組,判定與合併這顆之前逐字相同(而不是變成靜默不登出)。
+    // 台服拿不到 17531 是常態不是錯誤,因此結果快取起來,診斷只在第一次解析時寫一行 Information。
+    private const uint LogOutYesnoAddonRow = 115;
+    private const uint LogOutYesnoQueuedForDutyAddonRow = 17531;
+    private static string[] LogOutYesnoTextsCache;
+
+    internal static AtkUnitBase* GetLogOutYesno()
+    {
+        var texts = GetLogOutYesnoTexts();
+        // 兩列都取不到才會是空的;此時不要拿空陣列去比對,否則等於「任何視窗都不相符」以外還可能誤按。
+        if(texts.Length == 0) return null;
+        return GetSpecificYesno(texts);
+    }
+
+    private static string[] GetLogOutYesnoTexts()
+    {
+        if(LogOutYesnoTextsCache != null) return LogOutYesnoTextsCache;
+        var sheet = Svc.Data.GetExcelSheet<Addon>();
+        var texts = new List<string>();
+        var hasNormal = sheet.TryGetRow(LogOutYesnoAddonRow, out var normal);
+        if(hasNormal) texts.Add(normal.Text.GetText());
+        var hasQueued = sheet.TryGetRow(LogOutYesnoQueuedForDutyAddonRow, out var queued);
+        if(hasQueued) texts.Add(queued.Text.GetText());
+        LogOutYesnoTextsCache = [.. texts];
+        PluginLog.Information($"[Lifestream] 登出確認視窗文字解析完成:Addon#{LogOutYesnoAddonRow}={(hasNormal ? "有" : "無")}、" +
+            $"Addon#{LogOutYesnoQueuedForDutyAddonRow}={(hasQueued ? "有" : "無(台服常態,排隊等副本時的登出沿用一般判定)")};" +
+            $"共 {LogOutYesnoTextsCache.Length} 組候選文字。");
+        return LogOutYesnoTextsCache;
     }
 
     internal static string[] GetAvailableWorldDestinations()
@@ -1679,11 +1717,16 @@ internal static unsafe partial class Utils
     {
         if(TryGetAddonByName<AddonSelectString>("SelectString", out var addon) && IsAddonReady(&addon->AtkUnitBase))
         {
-            var entry = GetEntries(addon).FirstOrDefault(x => x.EqualsAny(text));
+            var entries = GetEntries(addon);
+            // 讀到 U+FFFD ＝ 選單記憶體正在變動(多半是上一層選單關閉中),這一幀不碰。
+            if(AddonPressGuard.AnyTextUnstable("SelectString", entries)) return false;
+            var entry = entries.FirstOrDefault(x => x.EqualsAny(text));
             if(entry != null)
             {
-                var index = GetEntries(addon).IndexOf(entry);
-                if(index >= 0 && Throttle())
+                var index = entries.IndexOf(entry);
+                // SelectString 全外掛唯一的 choke point(14 個呼叫端)。粒度=(窗,位址,索引):同一扇仍開著的選單
+                // 選不同項目照常放行,只擋「同位址同索引在窗走完前再選」。被擋回 false 與「還沒找到」走同一條路。
+                if(index >= 0 && Throttle() && AddonPressGuard.TryPressOnce("SelectString", addon, "TrySelectSpecificEntry", paramKey: index.ToString()))
                 {
                     new AddonMaster.SelectString(addon).Entries[index].Select();
                     PluginLog.Debug($"TrySelectSpecificEntry: selecting {entry}/{index} as requested by {text.Print()}");

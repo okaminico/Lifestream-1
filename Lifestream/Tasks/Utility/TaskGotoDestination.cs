@@ -585,7 +585,7 @@ public static unsafe class TaskGotoDestination
         }
         if(length < C.GotoMountMinDistance)
         {
-            // 使用者跑 LogLevel 2 —— 「為什麼沒上坐騎」正是他會來問的事，寫 Debug 他收不到。
+            // 使用者跑 LogLevel 1 —— 「為什麼沒上坐騎」正是他會來問的事，寫 Debug 會被單檔數十萬行淹沒。
             PluginLog.Information($"[Goto] Path is {length:F0}y, shorter than the {C.GotoMountMinDistance:F0}y mount threshold - walking.");
             return false;
         }
