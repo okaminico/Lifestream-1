@@ -76,6 +76,7 @@ public unsafe class Lifestream : IDalamudPlugin
         // 讓「呼叫了對方沒有的 IPC 方法」不再完全靜默。
         // 訂閱越早越好：事件只在 IPC **呼叫**當下才被查閱，在這裡訂閱就涵蓋往後所有呼叫。
         EzIpcFailureLog.Enable();
+        ChatQueue.Enable();
         ECommons.LanguageHelpers.Localization.Init("ChineseTraditional");
 #if CUSTOMCS
         PluginLog.Warning($"Using custom FFXIVClientStructs");
@@ -374,7 +375,7 @@ public unsafe class Lifestream : IDalamudPlugin
                 }
                 else
                 {
-                    ChatPrinter.Green($"[Lifestream] {"Saved destinations:".Loc()} {C.CustomDestinations.Select(d => d.Name).Print(", ")}");
+                    ChatQueue.Green($"[Lifestream] {"Saved destinations:".Loc()} {C.CustomDestinations.Select(d => d.Name).Print(", ")}");
                 }
             }
             else if(!P.TaskManager.IsBusy && Player.Interactable)
@@ -397,7 +398,7 @@ public unsafe class Lifestream : IDalamudPlugin
         }
         else if(Utils.TryParseAddressBookEntry(arguments, out var entry))
         {
-            ChatPrinter.Green($"[Lifestream] Address parsed: {entry.GetAddressString()}");
+            ChatQueue.Green($"[Lifestream] Address parsed: {entry.GetAddressString()}");
             entry.GoTo();
         }
         else
@@ -629,6 +630,9 @@ public unsafe class Lifestream : IDalamudPlugin
         }
         S.Data.ResidentialAethernet.Tick();
         S.Data.CustomAethernet.Tick();
+        // 傳送面板索引的**唯一**預熱點。放在這裡是因為它會讀原生記憶體,
+        // 而 IPC 端點跑在呼叫端的執行緒上、不可以自己去建索引。
+        Systems.TeleportPanel.TeleportPanelIndex.Tick();
         MonitorChatInput();
         if(!Svc.ClientState.IsLoggedIn)
         {
@@ -689,6 +693,7 @@ public unsafe class Lifestream : IDalamudPlugin
         GenericHelpers.Safe(AddonPressGuard.ForceTeardown);
         followPath?.Dispose();
         GenericHelpers.Safe(EzIpcFailureLog.Disable);
+        GenericHelpers.Safe(ChatQueue.Disable);
         // 🔴 一定要還原記憶體修補 —— 外掛卸載後遊戲還帶著被改過的碼是最糟的殘留。
         GenericHelpers.Safe(SameAethernetTeleportPatch.Disable);
         ECommonsMain.Dispose();

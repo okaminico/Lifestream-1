@@ -91,7 +91,7 @@ internal static class TaskTryTpToAethernetDestination
                 {
                     if(a.Name.Contains(targetName, StringComparison.OrdinalIgnoreCase))
                     {
-                        ChatPrinter.Green($"[Lifestream] Destination: {ExcelTerritoryHelper.GetName(x.Key.TerritoryType)} - {a.Name}");
+                        ChatQueue.Green($"[Lifestream] Destination: {ExcelTerritoryHelper.GetName(x.Key.TerritoryType)} - {a.Name}");
                         P.TaskManager.BeginStack();
                         try
                         {

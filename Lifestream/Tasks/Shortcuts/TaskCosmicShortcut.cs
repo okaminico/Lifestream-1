@@ -203,7 +203,7 @@ public static unsafe class TaskCosmicShortcut
     private static void FallBackToEntranceObjectRoute()
     {
         PluginLog.Information("[Cosmic] Falling back to the entrance-object route: teleport to the gateway aetheryte, mount up, ride to the entrance object and use its menu.");
-        ChatPrinter.Green($"[Lifestream] {"The quick route to Sinus Ardorum did not work, falling back to the long one.".Loc()}");
+        ChatQueue.Green($"[Lifestream] {"The quick route to Sinus Ardorum did not work, falling back to the long one.".Loc()}");
         CloseLeftoverSelectString();
         // 同 RouteDecision 的理由:退路是執行途中才決定要走的,一律用 InsertStack 插到佇列最前面。
         P.TaskManager.InsertStack(() => StaticAlias.CosmicExploration.Enqueue(true));

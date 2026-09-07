@@ -136,7 +136,7 @@ public static unsafe class TaskGotoDestination
         // (已在目的區域時不需要傳送點,TeleportToDestinationZone 會直接回 true)
         if(!hasAethernetRoute && !hasGatewayRoute && P.Territory != territory && FindClosestUnlockedAetheryte(territory, routingPos) == 0)
         {
-            ChatPrinter.Red($"[Lifestream] {LocText.CannotReachDestinationNoAetheryte.Loc()} {name} ({ExcelTerritoryHelper.GetName(territory)})");
+            ChatQueue.Red($"[Lifestream] {LocText.CannotReachDestinationNoAetheryte.Loc()} {name} ({ExcelTerritoryHelper.GetName(territory)})");
             zoned = false;
             return false;
         }
@@ -192,7 +192,7 @@ public static unsafe class TaskGotoDestination
         {
             // Enqueue 已預先驗證過,理論上到不了這裡;真的發生(狀態在途中改變)也不丟例外,
             // 印聊天欄錯誤並整條中止,免得後續的導航步驟在錯的區域亂走。
-            ChatPrinter.Red($"[Lifestream] {LocText.CannotReachDestinationNoAetheryte.Loc()} {name} ({ExcelTerritoryHelper.GetName(territory)})");
+            ChatQueue.Red($"[Lifestream] {LocText.CannotReachDestinationNoAetheryte.Loc()} {name} ({ExcelTerritoryHelper.GetName(territory)})");
             P.TaskManager.Abort();
             return true;
         }
@@ -417,13 +417,13 @@ public static unsafe class TaskGotoDestination
         var dest = run.Dest;
         if(P.Territory != dest.Territory)
         {
-            ChatPrinter.Red($"[Lifestream] {"Could not reach the target zone.".Loc()} ({ExcelTerritoryHelper.GetName(dest.Territory)})");
+            ChatQueue.Red($"[Lifestream] {"Could not reach the target zone.".Loc()} ({ExcelTerritoryHelper.GetName(dest.Territory)})");
             P.TaskManager.Abort();
             return true;
         }
         if(S.Ipc.VnavmeshIPC.IsReady() != true)
         {
-            ChatPrinter.Red($"[Lifestream] {"vnavmesh has not finished building the navigation mesh of this zone yet.".Loc()}");
+            ChatQueue.Red($"[Lifestream] {"vnavmesh has not finished building the navigation mesh of this zone yet.".Loc()}");
             P.TaskManager.Abort();
             return true;
         }
@@ -439,7 +439,7 @@ public static unsafe class TaskGotoDestination
         }
         if(floor == null)
         {
-            ChatPrinter.Red($"[Lifestream] {"There is no ground to stand on below that spot.".Loc()}");
+            ChatQueue.Red($"[Lifestream] {"There is no ground to stand on below that spot.".Loc()}");
             P.TaskManager.Abort();
             return true;
         }
@@ -507,7 +507,7 @@ public static unsafe class TaskGotoDestination
             if(!Svc.Condition[ConditionFlag.InFlight])
             {
                 PluginLog.Information("[Goto] 起飛沒有成功(不可飛/沒上到坐騎/被打斷),改用地面路線。");
-                ChatPrinter.Green($"[Lifestream] {"Could not take off - walking to the destination instead.".Loc()}");
+                ChatQueue.Green($"[Lifestream] {"Could not take off - walking to the destination instead.".Loc()}");
                 EnqueueGroundNavTo(point);
                 return true;
             }
@@ -544,7 +544,7 @@ public static unsafe class TaskGotoDestination
             if(remaining > FlyPathFailureDistance)
             {
                 PluginLog.Information($"[Goto] vnavmesh 沒有給出飛行路線(離目標還有 {remaining:F0} 碼),改用地面路線。");
-                ChatPrinter.Green($"[Lifestream] {"No flight path was found - walking to the destination instead.".Loc()}");
+                ChatQueue.Green($"[Lifestream] {"No flight path was found - walking to the destination instead.".Loc()}");
                 EnqueueGroundNavTo(point);
             }
         }
@@ -603,6 +603,6 @@ public static unsafe class TaskGotoDestination
         if(mapId == 0) return;
         agent->SetFlagMapMarker(territory, mapId, position);
         agent->OpenMap(mapId, territory);
-        ChatPrinter.Green($"[Lifestream] {LocText.VnavmeshNotInstalledFlagged.Loc()} {name}");
+        ChatQueue.Green($"[Lifestream] {LocText.VnavmeshNotInstalledFlagged.Loc()} {name}");
     }
 }

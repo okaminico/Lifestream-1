@@ -545,7 +545,7 @@ public static unsafe class TaskTeleportPanelGo
             {
                 if(TryDirectWrite(landing)) return true;
                 // 直接寫失敗(例如在戰鬥中/副本裡)就退回安全路徑，不要什麼都不做。
-                ChatPrinter.Red($"[Lifestream] {"Direct position write refused - falling back to walking.".Loc()}");
+                ChatQueue.Red($"[Lifestream] {"Direct position write refused - falling back to walking.".Loc()}");
             }
             // 落點離某座城內乙太之光比離剛落地的主水晶近很多時，先搭一段都市傳送網再走。
             // 不成立(或功能關著)就原封不動走既有那條路。
@@ -741,7 +741,7 @@ public static unsafe class TaskTeleportPanelGo
                 agent->SetFlagMapMarker(entry.Territory, mapId, landing);
                 agent->OpenMap(mapId, entry.Territory);
             }
-            ChatPrinter.Green($"[Lifestream] {LocText.VnavmeshNotInstalledFlagged.Loc()} {entry.DisplayName}");
+            ChatQueue.Green($"[Lifestream] {LocText.VnavmeshNotInstalledFlagged.Loc()} {entry.DisplayName}");
         }
     }
 

@@ -72,7 +72,7 @@ internal static unsafe partial class Utils
             {
                 if(S.TeleportService.TeleportToAetheryte(x.AetheryteId, wait: !additionalCommand.IsNullOrEmpty()))
                 {
-                    ChatPrinter.Green($"[Lifestream] Destination (Aethernet): {x.AetheryteData
+                    ChatQueue.Green($"[Lifestream] Destination (Aethernet): {x.AetheryteData
                         .Value.AethernetName.ValueNullable?.Name} at {ExcelTerritoryHelper.GetName(x.AetheryteData.Value.Territory.RowId)}");
                     return true;
                 }
@@ -84,7 +84,7 @@ internal static unsafe partial class Utils
             {
                 if(S.TeleportService.TeleportToAetheryte(x.AetheryteId, wait: !additionalCommand.IsNullOrEmpty()))
                 {
-                    ChatPrinter.Green($"[Lifestream] Destination (Place): {x.AetheryteData
+                    ChatQueue.Green($"[Lifestream] Destination (Place): {x.AetheryteData
                         .Value.PlaceName.ValueNullable?.Name} at {ExcelTerritoryHelper.GetName(x.AetheryteData.Value.Territory.RowId)}");
                     return true;
                 }
@@ -96,7 +96,7 @@ internal static unsafe partial class Utils
             {
                 if(S.TeleportService.TeleportToAetheryte(x.AetheryteId, wait: !additionalCommand.IsNullOrEmpty()))
                 {
-                    ChatPrinter.Green($"[Lifestream] Destination (Zone): {x.AetheryteData
+                    ChatQueue.Green($"[Lifestream] Destination (Zone): {x.AetheryteData
                         .Value.Territory.Value.PlaceName.Value.Name} at {ExcelTerritoryHelper.GetName(x.AetheryteData.Value.Territory.RowId)}");
                     return true;
                 }
@@ -497,7 +497,7 @@ internal static unsafe partial class Utils
         if(IsTravelBlocked(charaName, charaWorld, sourceWorld, targetWorld))
         {
             var err = $"Character {charaName}@{ExcelWorldHelper.GetName(charaWorld)} can not travel from {ExcelWorldHelper.GetName(sourceWorld)} to {ExcelWorldHelper.GetName(targetWorld)}. Access Lifestream - Travel Block to change it.";
-            Svc.Toasts.ShowError(err);
+            ChatQueue.ErrorToast(err);
             Notify.Error(err);
             DuoLog.Error(err);
             throw new InvalidOperationException(err);
@@ -767,7 +767,7 @@ internal static unsafe partial class Utils
 
     public static void DisplayInfo(string s, bool? displayChat = null, bool? displayPopup = null)
     {
-        if(displayChat ?? C.DisplayChatTeleport) ChatPrinter.Green($"[Lifestream] {s}");
+        if(displayChat ?? C.DisplayChatTeleport) ChatQueue.Green($"[Lifestream] {s}");
         if(displayPopup ?? C.DisplayPopupNotifications) Notify.Info(s);
     }
 

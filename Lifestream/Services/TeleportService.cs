@@ -18,6 +18,10 @@ public unsafe class TeleportService
         {
             if(x.AetheryteId == id && x.SubIndex == sub)
             {
+                // 送出之前先給 GilDelta 一個歸因提示：接下來自己錢包的那筆減少是傳送費。
+                // 這裡是 Lifestream 唯一一個會扣錢的傳送收口（乙太網與住宅乙太網免費，不經過這裡），
+                // 所以提示只要打在這一行，不必每個 UI 入口各打一次。純通知，零行為改變。
+                IPC.GilDeltaIPC.HintTeleportFee(id, sub);
                 Telepo.Instance()->Teleport(id, (byte)sub);
                 if(wait)
                 {
