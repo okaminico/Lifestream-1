@@ -94,7 +94,11 @@ public unsafe class Lifestream : IDalamudPlugin
             // 解析失敗(命中數不是 1)時只會寫一行 log 並維持未修補狀態，不影響其餘功能。
             if(Config.SameAethernetTeleport) GenericHelpers.Safe(() => SameAethernetTeleportPatch.Enable());
             EzConfigGui.Init(MainGui.Draw);
-            TaskManager = new(new(showDebug: true));
+            // TaskTimeoutLog.Attach()：逾時時多印一行「是哪一步逾時」的 Warning，
+            // 並蓋掉 ECommons 那行完全匿名的（它擲的 TaskTimeoutException 連 Message 都沒有）。
+            // showDebug: true 維持原樣一個字都沒改 —— 帶名字的那一行是 Debug 級，會被噪音淹沒，
+            // 這裡補的是 Warning 級。理由與限制寫在 TaskTimeoutLog 的註解裡。
+            TaskManager = TaskTimeoutLog.Attach(new(new(showDebug: true)), "Lifestream");
             CharaSelectOverlay = new();
             EzConfigGui.WindowSystem.AddWindow(CharaSelectOverlay);
             EzCmd.Add("/lifestream", ProcessCommand, null);
