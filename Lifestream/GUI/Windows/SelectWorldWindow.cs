@@ -19,7 +19,15 @@ public class SelectWorldWindow : Window
             && (PublicWorlds.IsTaiwanWorld(Player.Object.HomeWorld.RowId)
                 || PublicWorlds.IsTaiwanWorld(Player.Object.CurrentWorld.RowId)))
         {
-            DrawTaiwanWorlds([.. PublicWorlds.GetTaiwanWorlds().Select(world => (World?)world)]);
+            // 排除清單(預設含已停止營運的拉姆 4034)在建清單的這一刻就濾掉，
+            // 讓選單與 /li 的候選共用同一份真值，不要在兩個地方各判一次。
+            var taiwanWorlds = PublicWorlds.Travelable(PublicWorlds.GetTaiwanWorlds());
+            if(taiwanWorlds.Length == 0)
+            {
+                ImGuiEx.Text("No available destinations".Loc());
+                return;
+            }
+            DrawTaiwanWorlds([.. taiwanWorlds.Select(world => (World?)world)]);
             return;
         }
 

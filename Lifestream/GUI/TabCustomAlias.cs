@@ -11,6 +11,17 @@ using Aetheryte = Lumina.Excel.Sheets.Aetheryte;
 namespace Lifestream.GUI;
 public static class TabCustomAlias
 {
+    /// <summary>
+    /// 「切換世界」這個別名指令選的是<b>傳送目的地</b>，所以要濾掉去不了的世界。
+    /// 刻意自己開一個 selector 而不是用 <c>WorldSelector.Instance</c> —— 那是共用單例，
+    /// 在它身上設 <c>ShouldHideWorld</c> 會一路影響到地址簿與傳送封鎖的世界欄，
+    /// 讓既有的拉姆條目變得無法編輯。
+    /// </summary>
+    private static readonly WorldSelector ChangeWorldSelector = new("##changeworld")
+    {
+        ShouldHideWorld = PublicWorlds.IsUnavailable,
+    };
+
     private static ImGuiEx.RealtimeDragDrop<CustomAliasCommand> DragDrop = new("CusACmd", x => x.ID);
 
     public static void Draw()
@@ -241,7 +252,7 @@ public static class TabCustomAlias
         if(command.Kind == CustomAliasKind.Change_world)
         {
             ImGui.SetNextItemWidth(150f.Scale());
-            WorldSelector.Instance.Draw(ref command.World);
+            ChangeWorldSelector.Draw(ref command.World);
             ImGui.SameLine();
             ImGuiEx.Text("Select world".Loc());
         }

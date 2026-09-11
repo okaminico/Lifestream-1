@@ -624,6 +624,10 @@ public unsafe class Lifestream : IDalamudPlugin
         AddonPressGuard.Tick();
         YesAlreadyManager.Tick();
         followPath?.Update();
+        // IPC 端點 Lifestream.IsBusy 讀的每幀快照。必須排在 followPath?.Update() 之後（理由見該處註解）。
+        // 這支只讀兩個計數、不碰原生記憶體，所以不另外包 try —— 它擲例外的唯一可能是
+        // 上面兩行已經先擲了，那時 Tick 本來就進行不下去。
+        IPC.IPCProvider.UpdateBusySnapshot();
         if(Svc.Objects.LocalPlayer != null && S.Data.DataStore.Territories.Contains(P.Territory))
         {
             UpdateActiveAetheryte();

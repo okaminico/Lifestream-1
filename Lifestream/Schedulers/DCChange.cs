@@ -307,7 +307,7 @@ internal static unsafe class DCChange
             // 掃清單本來就能找到目標世界並選下去。讀不到就留空字串,
             // 讓 cw == name 單純比不中(＝「還沒確認到站」),控制流與原本一字不差。
             TryGetNodeText(addon, 10, out var cw);
-            if(cw == name || (C.DcvUseAlternativeWorld && cw.EqualsAny(PublicWorlds.Get(Utils.GetDataCenter(name).RowId).Select(w => w.Name.ToString()))))
+            if(cw == name || (C.DcvUseAlternativeWorld && cw.EqualsAny(PublicWorlds.Travelable(PublicWorlds.Get(Utils.GetDataCenter(name).RowId)).Select(w => w.Name.ToString()))))
             {
                 return true;
             }
@@ -347,7 +347,7 @@ internal static unsafe class DCChange
                         var text = GenericHelpers.ReadSeString(&t->NodeText).GetText();
                         if(AddonPressGuard.IsTextUnstable("LobbyDKTWorldList", text)) return false;
                         if(text != "") num++;
-                        if(text.EqualsAny(PublicWorlds.Get(Utils.GetDataCenter(name).RowId).Select(w => w.Name.ToString())) && DCThrottle && EzThrottler.Throttle("SelectTargetWorld"))
+                        if(text.EqualsAny(PublicWorlds.Travelable(PublicWorlds.Get(Utils.GetDataCenter(name).RowId)).Select(w => w.Name.ToString())) && DCThrottle && EzThrottler.Throttle("SelectTargetWorld"))
                         {
                             PluginLog.Debug($"[DCChange] Selecting alternative target world {name} index {i}");
                             S.Memory.ConstructEvent(addon, 0, 2, 6, i - 2, i - 2);

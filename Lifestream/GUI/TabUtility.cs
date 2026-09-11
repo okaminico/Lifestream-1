@@ -11,7 +11,8 @@ public static class TabUtility
     {
         DisplayCurrent = false,
         EmptyName = "Disabled".Loc(),
-        ShouldHideWorld = (x) => x == Player.Object?.CurrentWorld.RowId
+        // 去不了的世界永遠不會抵達，所以也不該被選成「抵達就關遊戲」的目標。
+        ShouldHideWorld = (x) => x == Player.Object?.CurrentWorld.RowId || PublicWorlds.IsUnavailable(x)
     };
     private static PaissaImporter PaissaImporter = new();
 

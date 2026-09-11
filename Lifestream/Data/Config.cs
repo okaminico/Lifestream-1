@@ -229,4 +229,22 @@ public class Config : IEzConfig
     /// 📌 只比直線距離,不用 vnavmesh 算路徑長度 —— 理由見 <see cref="Tasks.Utility.TaskAethernetRoute"/>。
     /// </summary>
     public float SkipAethernetIfCloserThan = 0f;
+
+    /// <summary>
+    /// 目前「去不了」的世界(World RowId)。列在這裡的世界永遠不會被當成傳送目的地。
+    /// </summary>
+    /// <remarks>
+    /// 出廠值 4034 是台服的「拉姆」—— 該世界已停止營運，切過去只會失敗。
+    /// <para>
+    /// 這份清單只影響「可以去哪裡」，不影響「有哪些世界」：地址簿既有條目、世界名稱的
+    /// 比對與顯示、大廳世界清單的列數都照舊用完整的世界表。判斷入口只有一個 ——
+    /// <see cref="PublicWorlds.IsUnavailable(uint)"/>。
+    /// </para>
+    /// <para>
+    /// 設定走 ECommons EzConfig，反序列化是 <c>ObjectCreationHandling.Replace</c>：
+    /// 既有設定檔沒有這個鍵時吃得到這個出廠值；使用者在 UI 把它移掉、存檔寫成空集合之後，
+    /// Replace 會讓它保持空的，不會被出廠值塞回來。
+    /// </para>
+    /// </remarks>
+    public HashSet<uint> UnavailableWorlds = [4034];
 }

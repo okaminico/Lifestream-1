@@ -7,6 +7,8 @@ public class GameCloseWindow : Window
     private WorldSelector WorldSelector = new()
     {
         EmptyName = "Disabled".Loc(),
+        // 同 TabUtility：去不了的世界不會抵達，不列進來。
+        ShouldHideWorld = PublicWorlds.IsUnavailable,
     };
     public GameCloseWindow() : base("Lifestream Scheduler".Loc() + "###LifestreamScheduler", ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoSavedSettings | ImGuiWindowFlags.AlwaysAutoResize)
     {

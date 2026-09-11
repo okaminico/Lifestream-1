@@ -695,11 +695,11 @@ internal static unsafe partial class Utils
     public static List<World> GetVisitableWorldsFrom(World source)
     {
         var ret = new List<World>();
-        foreach(var x in PublicWorlds.Get(source.GetRegion()))
+        foreach(var x in PublicWorlds.Travelable(PublicWorlds.Get(source.GetRegion())))
         {
             ret.Add(x);
         }
-        foreach(var x in PublicWorlds.Get(ExcelWorldHelper.Region.OC))
+        foreach(var x in PublicWorlds.Travelable(PublicWorlds.Get(ExcelWorldHelper.Region.OC)))
         {
             if(!ret.Contains(x)) ret.Add(x);
         }
@@ -791,7 +791,7 @@ internal static unsafe partial class Utils
             if(x.RowId == 0 || x.Name == "") continue;
             if(x.Name.GetText().StartsWith(s, StringComparison.OrdinalIgnoreCase))
             {
-                var worlds = PublicWorlds.Get(x.RowId);
+                var worlds = PublicWorlds.Travelable(PublicWorlds.Get(x.RowId));
                 if(worlds.Length > 0)
                 {
                     world = worlds[Random.Shared.Next(worlds.Length)].Name.ToString();

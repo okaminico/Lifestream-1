@@ -124,7 +124,7 @@ public class DataStore
             && (PublicWorlds.IsTaiwanWorld(playerWorld.CurrentWorld.RowId)
                 || PublicWorlds.IsTaiwanWorld(playerWorld.HomeWorld.RowId)))
         {
-            Worlds = [.. PublicWorlds.GetTaiwanWorlds()
+            Worlds = [.. PublicWorlds.Travelable(PublicWorlds.GetTaiwanWorlds())
                 .Select(x => x.Name.ToString())
                 .Order()];
             DCWorlds = [];
@@ -132,9 +132,9 @@ public class DataStore
             return;
         }
 
-        Worlds = [.. Svc.Data.GetExcelSheet<World>().Where(x => x.DataCenter.Value.RowId == dc && PublicWorlds.IsPublic(x)).Select(x => x.Name.ToString()).Order()];
+        Worlds = [.. Svc.Data.GetExcelSheet<World>().Where(x => x.DataCenter.Value.RowId == dc && PublicWorlds.IsPublic(x) && !PublicWorlds.IsUnavailable(x)).Select(x => x.Name.ToString()).Order()];
         PluginLog.Debug($"Built worlds: {Worlds.Print()}");
-        DCWorlds = Svc.Data.GetExcelSheet<World>().Where(x => x.DataCenter.Value.RowId != dc && PublicWorlds.IsPublic(x) && (x.DataCenter.Value.Region == Player.Object.HomeWorld.Value.DataCenter.Value.Region || x.DataCenter.Value.Region == 4)).Select(x => x.Name.ToString()).ToArray();
+        DCWorlds = Svc.Data.GetExcelSheet<World>().Where(x => x.DataCenter.Value.RowId != dc && PublicWorlds.IsPublic(x) && !PublicWorlds.IsUnavailable(x) && (x.DataCenter.Value.Region == Player.Object.HomeWorld.Value.DataCenter.Value.Region || x.DataCenter.Value.Region == 4)).Select(x => x.Name.ToString()).ToArray();
         PluginLog.Debug($"Built DCworlds: {DCWorlds.Print()}");
     }
 

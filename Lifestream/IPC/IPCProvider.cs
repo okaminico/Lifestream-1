@@ -98,11 +98,56 @@ public class IPCProvider
         AddressBookEntry.FromTuple(addressBookEntryTuple).GoTo();
     }
 
+    /// <summary>
+    /// 「Lifestream 現在正在忙」的唯讀狀態。TCToolbox／ICE／Saucy 這類消費端會**高頻輪詢**它。
+    /// </summary>
+    /// <remarks>
+    /// 🔴 這支跑在<b>呼叫端的執行緒</b>上，而它原本讀的兩樣東西都只有在 framework 執行緒上才成立：
+    /// <c>P.TaskManager</c>（ECommons 的 NeoTaskManager，內部是裸 <c>List&lt;T&gt;</c>，
+    /// framework 執行緒每幀在增刪它）與 <c>P.followPath.Waypoints</c>（那個 <c>IReadOnlyList</c>
+    /// 底下就是 <c>FollowPath.waypointsInternal</c> 這個裸 <c>List&lt;Vector3&gt;</c>，
+    /// <c>followPath.Update()</c> 每幀在 <c>RemoveAt</c> 它）。從別的執行緒讀 <c>Count</c>
+    /// 不只是「拿到舊值」——並行改動時看到的可能是集合內部不變式被打破的中間態。
+    /// <br/><br/>
+    /// 🔑 這裡刻意<b>不</b>走 <see cref="IpcFrameworkGate"/>：那條路最多會等主執行緒
+    /// <see cref="IpcFrameworkGate.TimeoutMs"/> 毫秒，而這是被高頻輪詢的布林端點 ——
+    /// 把呼叫端的執行緒卡住比讓它讀到差一幀的值糟得多。改成讀 framework 執行緒每幀寫入的
+    /// 快照（<see cref="UpdateBusySnapshot"/>），最舊差一幀。
+    /// <br/><br/>
+    /// 📌 已經在 framework 執行緒上時（含本檔其他 <c>*Core</c> 的內部呼叫）就地算，
+    /// 回傳值與時序逐字不變。
+    /// 📌 卸載期不受影響：這條路徑一次都沒有呼叫 <c>RunOnFrameworkThread</c>，
+    /// 所以沒有「<c>IsFrameworkUnloading</c> 為真時就地在呼叫端執行緒執行」那個旁路可踩。
+    /// </remarks>
     [EzIPC]
     public bool IsBusy()
+        => Svc.Framework.IsInFrameworkUpdateThread ? IsBusyCore() : IsBusySnapshot;
+
+    /// <summary>
+    /// <see cref="IsBusy"/> 的實際判斷，條件與改動前逐字相同。
+    /// <b>只能在 framework 執行緒上呼叫。</b>
+    /// </summary>
+    private static bool IsBusyCore()
     {
-        return P.TaskManager.IsBusy || (P.followPath != null && P.followPath.Waypoints.Count > 0);
+        // 先抄進區域變數再用：原本那行是「判 null」與「讀 Count」兩次各自讀 P.followPath，
+        // 中間被設成 null 就是 NullReferenceException。框架執行緒上本來就很難踩到，
+        // 但既然搬動這行，順手讓它不可能發生。
+        var followPath = P.followPath;
+        return P.TaskManager.IsBusy || (followPath != null && followPath.Waypoints.Count > 0);
     }
+
+    /// <summary>
+    /// <see cref="IsBusy"/> 給別的執行緒讀的每幀快照。
+    /// <c>volatile</c> 保證讀到的是最近一次寫入的值（<c>bool</c> 的讀寫本身就是原子的），不需要鎖。
+    /// </summary>
+    private static volatile bool IsBusySnapshot;
+
+    /// <summary>
+    /// 由 <c>Lifestream.Framework_Update</c>（framework 執行緒）每幀呼叫一次。
+    /// 🔴 必須排在 <c>followPath?.Update()</c> <b>之後</b>：那一支每幀會把已經走過的航點移掉，
+    /// 排在它前面時「最後一個航點剛走完」的那一幀，快照會比實際狀態多忙一幀。
+    /// </summary>
+    internal static void UpdateBusySnapshot() => IsBusySnapshot = IsBusyCore();
 
     [EzIPC]
     public void Abort()

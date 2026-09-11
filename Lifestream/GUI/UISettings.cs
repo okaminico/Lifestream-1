@@ -8,6 +8,7 @@ using Lifestream.Systems.TeleportPanel;
 using Lifestream.Tasks.Shortcuts;
 using Lumina.Excel.Sheets;
 using NightmareUI;
+using NightmareUI.ImGuiElements;
 using NightmareUI.PrimaryUI;
 using System.Globalization;
 using Action = System.Action;
@@ -17,6 +18,18 @@ namespace Lifestream.GUI;
 internal static unsafe class UISettings
 {
     private static string AddNew = "";
+
+    /// <summary>「去不了的世界」區塊裡待加入的世界，0 = 還沒選。</summary>
+    private static int AddUnavailableWorld = 0;
+
+    /// <summary>
+    /// 挑世界加進排除清單用。刻意自己開一個而不是用共用單例 <c>WorldSelector.Instance</c>：
+    /// 這裡要列出<b>全部</b>世界(含已經被排除的)，而單例會被別的分頁改設定。
+    /// </summary>
+    private static readonly WorldSelector UnavailableWorldSelector = new("##addunavailableworld")
+    {
+        EmptyName = "Select a world".Loc(),
+    };
     internal static void Draw()
     {
         NuiTools.ButtonTabs([[new("General".Loc(), () => Wrapper(DrawGeneral)), new("Overlay".Loc(), () => Wrapper(DrawOverlay)), new("Teleport Panel".Loc(), () => Wrapper(DrawTeleportPanel))], [new("Expert".Loc(), () => Wrapper(DrawExpert)), new("Service Accounts".Loc(), () => Wrapper(UIServiceAccount.Draw)), new("Travel Block".Loc(), TabTravelBan.Draw)]]);
@@ -319,6 +332,51 @@ internal static unsafe class UISettings
             ImGui.SetNextItemWidth(150f.Scale());
             ImGui.InputInt(LocText.IntervalBetweenRetriesSeconds.Loc(), ref C.DcvRetryInterval.ValidateRange(10, 1000));
             ImGui.Unindent();
+        })
+
+        .Section("Unavailable worlds".Loc())
+        .Widget(() =>
+        {
+            ImGuiEx.TextWrapped("Worlds listed here are never offered as a travel destination.".Loc());
+            ImGuiEx.HelpMarker("This only controls where you can go. World names are still recognised everywhere else, so existing address book entries, name matching and the lobby world list keep working. Taiwan's Ramuh (4034) is excluded out of the box because that world was shut down.".Loc());
+            if(C.UnavailableWorlds.Count == 0)
+            {
+                ImGuiEx.Text(ImGuiColors.DalamudGrey, "Nothing is excluded - every world is offered as a destination.".Loc());
+            }
+            else
+            {
+                // ToArray:迴圈裡會 Remove，不可以直接走訪原集合。
+                foreach(var worldId in C.UnavailableWorlds.ToArray())
+                {
+                    if(ImGuiEx.IconButton(FontAwesomeIcon.Trash, $"UnavailableWorld{worldId}"))
+                    {
+                        C.UnavailableWorlds.Remove(worldId);
+                        EzConfig.Save();
+                    }
+                    ImGuiEx.Tooltip("Remove".Loc());
+                    ImGui.SameLine();
+                    var worldName = ExcelWorldHelper.GetName(worldId);
+                    if(worldName.IsNullOrEmpty())
+                    {
+                        // 查不到名字要在列上看得見是「不知道」，不能默默只印 id。
+                        ImGuiEx.Text(ImGuiColors.DalamudGrey, $"? ({worldId})");
+                        ImGuiEx.Tooltip("This world id is not present in the game's world table.".Loc());
+                    }
+                    else
+                    {
+                        ImGuiEx.Text(ImGuiColors.DalamudOrange, $"{worldName} ({worldId})");
+                    }
+                }
+            }
+            ImGui.SetNextItemWidth(200f.Scale());
+            UnavailableWorldSelector.Draw(ref AddUnavailableWorld);
+            ImGui.SameLine();
+            if(ImGuiEx.IconButtonWithText(FontAwesomeIcon.Plus, "Add".Loc(), enabled: AddUnavailableWorld != 0 && !C.UnavailableWorlds.Contains((uint)AddUnavailableWorld)))
+            {
+                C.UnavailableWorlds.Add((uint)AddUnavailableWorld);
+                AddUnavailableWorld = 0;
+                EzConfig.Save();
+            }
         })
 
         .Section("Address Book".Loc())
